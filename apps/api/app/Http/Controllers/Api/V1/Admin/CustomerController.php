@@ -58,7 +58,10 @@ class CustomerController extends Controller
         // never revisited to reflect it (same class of gap as
         // DashboardController's orders_available) — this was reporting a
         // permanent false/empty even after orders existed and worked.
-        $orders = Order::where('user_id', $user->id)->orderByDesc('created_at')->get();
+        $orders = Order::where('user_id', $user->id)
+            ->with(['items', 'address.wilaya', 'address.commune', 'statusHistory', 'payments', 'shipments', 'coupon'])
+            ->orderByDesc('created_at')
+            ->get();
 
         return ApiResponse::success([
             ...$this->serialize($user),
@@ -105,7 +108,10 @@ class CustomerController extends Controller
             throw new ApiException('not_found', 'Customer not found.', 404);
         }
 
-        $user->update(['status' => $request->input('status')]);
+        // forceFill: status isn't mass-assignable on User (see the model) —
+        // this endpoint (permission:customers.edit) is exactly the
+        // privileged operation that guard exists for.
+        $user->forceFill(['status' => $request->input('status')])->save();
 
         if ($request->input('status') === 'blocked') {
             $user->tokens()->delete();

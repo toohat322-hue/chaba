@@ -50,6 +50,8 @@ class CouponTest extends TestCase
     {
         $wilaya = Wilaya::firstOrCreate(['code' => '16'], ['name_ar' => 'الجزائر', 'name_fr' => 'Alger', 'name_en' => 'Algiers']);
 
+        DeliveryFee::firstOrCreate(['wilaya_code' => $wilaya->code, 'delivery_method' => 'home']);
+
         return Commune::firstOrCreate(
             ['wilaya_code' => $wilaya->code],
             ['name_ar' => 'الوسطى', 'name_fr' => 'Centre', 'name_en' => 'Centre'],
@@ -150,9 +152,10 @@ class CouponTest extends TestCase
     {
         $variant = $this->makeVariant(price: 100000);
         $commune = $this->makeCommune();
-        DeliveryFee::create([
-            'wilaya_code' => $commune->wilaya_code, 'delivery_method' => 'home', 'fee' => 40000,
-        ]);
+        DeliveryFee::updateOrCreate(
+            ['wilaya_code' => $commune->wilaya_code, 'delivery_method' => 'home'],
+            ['fee' => 40000],
+        );
         Coupon::create(['code' => 'FREESHIP', 'type' => 'free_shipping', 'is_active' => true]);
         $headers = $this->guestHeader();
 

@@ -3,10 +3,10 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\SocialAccount;
-use App\Models\User;
 use App\Services\SocialExchangeService;
 use App\Services\SocialStateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Socialite\Contracts\Provider;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use Mockery;
@@ -35,13 +35,13 @@ class SocialLoginHttpTest extends TestCase
 
     private function mockSocialiteUser(string $provider, string $id, ?string $email, ?string $name): void
     {
-        $socialiteUser = (new SocialiteUser())->setRaw(['sub' => $id])->map([
+        $socialiteUser = (new SocialiteUser)->setRaw(['sub' => $id])->map([
             'id' => $id,
             'email' => $email,
             'name' => $name,
         ]);
 
-        $mockProvider = Mockery::mock(\Laravel\Socialite\Contracts\Provider::class);
+        $mockProvider = Mockery::mock(Provider::class);
         $mockProvider->shouldReceive('stateless')->andReturnSelf();
         $mockProvider->shouldReceive('user')->andReturn($socialiteUser);
 

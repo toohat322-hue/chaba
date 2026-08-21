@@ -19,7 +19,11 @@ class RegisterController extends Controller
 
     public function __invoke(RegisterRequest $request): JsonResponse
     {
-        $user = User::create([
+        // forceFill: is_guest/status aren't mass-assignable on User (see the
+        // model) — this is the one legitimate place a brand-new account's
+        // status is set.
+        $user = new User;
+        $user->forceFill([
             'full_name' => $request->string('full_name')->toString(),
             'phone' => $request->string('phone')->toString(),
             'email' => $request->email,
@@ -27,7 +31,7 @@ class RegisterController extends Controller
             'preferred_language' => $request->input('preferred_language', 'ar'),
             'is_guest' => false,
             'status' => 'active',
-        ]);
+        ])->save();
 
         // Email is optional at registration (phone is the required identity
         // field) — most registrations have no email at all, so this simply

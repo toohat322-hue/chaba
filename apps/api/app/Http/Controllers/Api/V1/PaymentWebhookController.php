@@ -8,6 +8,7 @@ use App\Models\PaymentWebhookEvent;
 use App\Services\NotificationService;
 use App\Services\Payments\PaymentGatewayResolver;
 use App\Support\ApiResponse;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -48,12 +49,27 @@ class PaymentWebhookController extends Controller
             return ApiResponse::success(['status' => 'duplicate'], 200);
         }
 
-        $event = PaymentWebhookEvent::create([
-            'gateway' => $gateway,
-            'payload_hash' => $payloadHash,
-            'payload' => $request->all(),
-            'status' => 'received',
-        ]);
+        try {
+            $event = PaymentWebhookEvent::create([
+                'gateway' => $gateway,
+                'payload_hash' => $payloadHash,
+                'payload' => $request->all(),
+                'status' => 'received',
+            ]);
+        } catch (QueryException $exception) {
+            // Two identical deliveries arriving concurrently can both pass
+            // the $existing check above before either commits (TOCTOU) — the
+            // unique (gateway, payload_hash) constraint then rejects the
+            // second insert. Without this catch that surfaced as an
+            // uncaught 500, which is worse than the duplicate it's guarding
+            // against: it invites the gateway to retry-storm instead of
+            // seeing the clean 200 idempotent-replay response below.
+            if (str_contains($exception->getMessage(), 'unique')) {
+                return ApiResponse::success(['status' => 'duplicate'], 200);
+            }
+
+            throw $exception;
+        }
 
         try {
             $payment = $provider->handleWebhook($request->all(), $request->header('X-Signature'));

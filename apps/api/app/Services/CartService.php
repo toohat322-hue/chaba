@@ -28,8 +28,13 @@ class CartService
     {
         $user = $request->user('sanctum');
 
+        // createOrFirst (not firstOrCreate) — two concurrent requests with no
+        // existing active cart otherwise both pass the initial lookup and
+        // both attempt an insert; createOrFirst catches the unique-index
+        // violation (see the 2026_08_21_000005 migration) and re-queries
+        // instead of raising it, so both requests converge on the same row.
         if ($user) {
-            return Cart::firstOrCreate(['user_id' => $user->id, 'status' => 'active']);
+            return Cart::createOrFirst(['user_id' => $user->id, 'status' => 'active']);
         }
 
         $sessionToken = $request->header('X-Guest-Session');
@@ -38,7 +43,7 @@ class CartService
             throw new ApiException('guest_session_required', 'A guest session token is required.', 400);
         }
 
-        $cart = Cart::firstOrCreate([
+        $cart = Cart::createOrFirst([
             'session_token' => $sessionToken,
             'user_id' => null,
             'status' => 'active',

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Commune;
+use App\Models\DeliveryFee;
 use App\Models\Inventory;
 use App\Models\Notification;
 use App\Models\Product;
@@ -121,6 +122,7 @@ class NotificationTest extends TestCase
         Inventory::create(['variant_id' => $variant->id, 'stock_quantity' => 10, 'reserved_quantity' => 0, 'low_stock_threshold' => 5]);
 
         $wilaya = Wilaya::create(['code' => '16', 'name_ar' => 'ا', 'name_fr' => 'A', 'name_en' => 'A']);
+        DeliveryFee::create(['wilaya_code' => $wilaya->code, 'delivery_method' => 'home']);
         $commune = Commune::create(['wilaya_code' => $wilaya->code, 'name_ar' => 'ا', 'name_fr' => 'A', 'name_en' => 'A']);
 
         $this->withHeaders($headers)->postJson('/api/v1/cart/items', ['variant_id' => $variant->id, 'quantity' => 1]);

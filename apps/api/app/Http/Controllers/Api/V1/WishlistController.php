@@ -29,6 +29,10 @@ class WishlistController extends Controller
     {
         $product = Product::find($request->validated('product_id'));
 
+        if (! $product) {
+            throw ApiException::notFound('not_found', 'Product not found.');
+        }
+
         $item = $this->wishlist->addProduct($request, $product);
         $item->load('variant.product.images', 'variant.product.variants.inventory');
 

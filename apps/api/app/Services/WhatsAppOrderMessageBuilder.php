@@ -15,7 +15,7 @@ class WhatsAppOrderMessageBuilder
 {
     private const LABELS = [
         'ar' => [
-            'heading' => "🛍️ *طلب جديد من CHABA*",
+            'heading' => '🛍️ *طلب جديد من CHABA*',
             'order_number' => '📦 *رقم الطلب:*',
             'customer' => '👤 *بيانات العميل:*',
             'name' => 'الاسم:',
@@ -36,7 +36,7 @@ class WhatsAppOrderMessageBuilder
             'thanks' => 'شكراً لطلبك من CHABA 🤍',
         ],
         'fr' => [
-            'heading' => "🛍️ *Nouvelle commande CHABA*",
+            'heading' => '🛍️ *Nouvelle commande CHABA*',
             'order_number' => '📦 *Numéro de commande :*',
             'customer' => '👤 *Informations client :*',
             'name' => 'Nom :',
@@ -57,7 +57,7 @@ class WhatsAppOrderMessageBuilder
             'thanks' => 'Merci pour votre commande CHABA 🤍',
         ],
         'en' => [
-            'heading' => "🛍️ *New order from CHABA*",
+            'heading' => '🛍️ *New order from CHABA*',
             'order_number' => '📦 *Order number:*',
             'customer' => '👤 *Customer details:*',
             'name' => 'Name:',

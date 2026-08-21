@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
-use Illuminate\Contracts\Encryption\DecryptException;
 
 /**
  * OAuth `state` for social login, without a PHP session — this API has none
@@ -52,7 +52,7 @@ class SocialStateService
 
     /**
      * @return array{nonce: string, issued_at: int, return_to: string, locale: string, link_user_id: ?string}|null
-     *         null if the state is malformed, tampered with, or expired.
+     *                                                                                                             null if the state is malformed, tampered with, or expired.
      */
     public function decode(string $state, ?string $cookieNonce): ?array
     {

@@ -39,7 +39,11 @@ class WishlistService
             throw ApiException::businessRule('no_variant_available', 'This product has no purchasable variant.');
         }
 
-        $item = Wishlist::firstOrCreate([
+        // createOrFirst (not firstOrCreate) — races the same way
+        // CartService::resolveCart's did, now backed by a real unique index
+        // for both the logged-in and guest cases (see the
+        // 2026_08_21_000008 migration for the guest one).
+        $item = Wishlist::createOrFirst([
             ...$this->resolveIdentity($request),
             'variant_id' => $variant->id,
         ]);

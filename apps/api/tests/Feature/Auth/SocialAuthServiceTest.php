@@ -99,7 +99,7 @@ class SocialAuthServiceTest extends TestCase
     public function test_a_verified_email_matching_a_staff_account_is_hard_refused(): void
     {
         $role = Role::create(['name' => 'Order Manager']);
-        User::create([
+        User::forceCreate([
             'full_name' => 'Staff Member', 'phone' => '+213555999888', 'email' => 'staff@chaba.dz',
             'password_hash' => bcrypt('password123'), 'role_id' => $role->id, 'status' => 'active',
         ]);
@@ -115,7 +115,7 @@ class SocialAuthServiceTest extends TestCase
 
     public function test_a_blocked_account_is_refused_even_via_a_matching_social_account(): void
     {
-        $user = User::create([
+        $user = User::forceCreate([
             'full_name' => 'Blocked User', 'phone' => '+213555222999', 'email' => 'blocked@example.com',
             'password_hash' => bcrypt('password123'), 'status' => 'blocked',
         ]);

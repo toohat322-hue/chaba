@@ -21,17 +21,27 @@ class ReviewService
         return DB::transaction(function () use ($product, $user, $data) {
             $orderItem = $this->findVerifyingOrderItem($product, $user);
 
-            $review = Review::updateOrCreate(
-                ['product_id' => $product->id, 'user_id' => $user->id],
-                [
-                    'order_item_id' => $orderItem?->id,
-                    'rating' => $data['rating'],
-                    'title' => $data['title'] ?? null,
-                    'body' => $data['body'] ?? null,
-                    'is_verified_purchase' => $orderItem !== null,
-                    'status' => $orderItem !== null ? 'approved' : 'pending',
-                ],
-            );
+            $values = [
+                'order_item_id' => $orderItem?->id,
+                'rating' => $data['rating'],
+                'title' => $data['title'] ?? null,
+                'body' => $data['body'] ?? null,
+                'is_verified_purchase' => $orderItem !== null,
+                'status' => $orderItem !== null ? 'approved' : 'pending',
+            ];
+
+            // createOrFirst (not updateOrCreate) — two concurrent submits
+            // (double-click, two tabs) can both miss each other's
+            // uncommitted insert under READ COMMITTED; createOrFirst catches
+            // the unique-index violation (see the 2026_08_21_000006
+            // migration) and retries as a find instead of raising it, then
+            // the fill+save below finishes the "or update" half a plain
+            // updateOrCreate would otherwise have handled.
+            $review = Review::createOrFirst(['product_id' => $product->id, 'user_id' => $user->id], $values);
+
+            if (! $review->wasRecentlyCreated) {
+                $review->fill($values)->save();
+            }
 
             $this->recalculate($product);
 

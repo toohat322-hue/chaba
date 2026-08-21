@@ -64,7 +64,19 @@ class OrderService
             $fee = DeliveryFee::where('wilaya_code', $address->wilaya_code)
                 ->where('delivery_method', $deliveryMethod)
                 ->first();
-            $deliveryFee = $fee->fee ?? 0;
+
+            // A missing row must never silently become free shipping — that
+            // was previously `$fee->fee ?? 0`, so any wilaya/method
+            // combination an admin hadn't gotten around to configuring
+            // shipped for free, unnoticed, until a revenue audit caught it.
+            if (! $fee) {
+                throw ApiException::businessRule(
+                    'delivery_fee_not_configured',
+                    'Delivery is not available for this wilaya and delivery method yet.',
+                );
+            }
+
+            $deliveryFee = $fee->fee;
 
             $subtotal = $items->sum(fn ($item) => $item->price_snapshot * $item->quantity);
 
@@ -122,7 +134,10 @@ class OrderService
             $locale = in_array($data['locale'] ?? null, ['ar', 'fr', 'en'], true) ? $data['locale'] : 'ar';
             $nameColumn = "name_{$locale}";
 
-            foreach ($items as $item) {
+            // Locked in a fixed order (by variant_id) rather than cart-item
+            // order — two different carts sharing overlapping variants could
+            // otherwise lock them in opposite order and deadlock.
+            foreach ($items->sortBy('variant_id') as $item) {
                 // Re-validated and committed under lock in the same pass —
                 // the cart's reservation could be stale (e.g. an admin
                 // manually corrected stock down after this cart reserved it).
@@ -206,6 +221,13 @@ class OrderService
     public function updateStatus(Order $order, string $newStatus, ?string $note, User $actor): Order
     {
         return DB::transaction(function () use ($order, $newStatus, $note, $actor) {
+            // Re-fetch under lock (same discipline as checkout() above) —
+            // two concurrent requests moving the same order (an admin
+            // double-click, or a client retrying a timed-out request) must
+            // not both pass the transition check and both run the restock
+            // loop below off the same stale $order->order_status.
+            $order = Order::query()->lockForUpdate()->with('items')->findOrFail($order->id);
+
             $allowed = self::FORWARD_TRANSITIONS[$order->order_status] ?? [];
 
             if (! in_array($newStatus, $allowed, true)) {

@@ -52,7 +52,11 @@ class StaffController extends Controller
 
     public function store(StoreStaffRequest $request): JsonResponse
     {
-        $user = User::create([
+        // forceFill: role_id/is_guest/status aren't mass-assignable on User
+        // (see the model) — creating a staff account with a role is exactly
+        // the privileged operation that guard exists for.
+        $user = new User;
+        $user->forceFill([
             'full_name' => $request->string('full_name')->toString(),
             'phone' => $request->string('phone')->toString(),
             'email' => $request->email,
@@ -60,7 +64,7 @@ class StaffController extends Controller
             'role_id' => $request->input('role_id'),
             'is_guest' => false,
             'status' => 'active',
-        ]);
+        ])->save();
 
         AuditLogger::log($request->user(), 'staff.created', $user);
 
@@ -81,7 +85,10 @@ class StaffController extends Controller
             throw ApiException::businessRule('cannot_modify_self', 'You cannot change your own role or status.');
         }
 
-        $user->fill($request->only(['role_id', 'status']));
+        // forceFill: role_id/status aren't mass-assignable on User (see the
+        // model) — this endpoint's whole job is changing them, gated by
+        // permission:roles.edit at the route level.
+        $user->forceFill($request->only(['role_id', 'status']));
         $changes = AuditLogger::diff($user);
         $user->save();
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,6 +17,22 @@ class Coupon extends Model
         'code', 'type', 'value', 'min_order_value', 'start_date', 'end_date',
         'usage_limit_total', 'usage_limit_per_customer', 'is_active',
     ];
+
+    /**
+     * Always stored uppercase so the DB's unique constraint actually means
+     * "unique" — CouponService::findValid() matches case-insensitively
+     * (upper(code) = ?), but the column's unique index was plain
+     * case-sensitive, so "SAVE10" and "save10" could both be created as
+     * "unique" rows and collide unpredictably at lookup time. Normalizing on
+     * write closes that alongside the case-insensitive unique index added in
+     * the 2026_08_21_000004 migration.
+     */
+    protected function code(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value) => mb_strtoupper($value),
+        );
+    }
 
     protected function casts(): array
     {

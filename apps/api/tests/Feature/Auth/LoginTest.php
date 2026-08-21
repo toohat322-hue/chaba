@@ -14,7 +14,9 @@ class LoginTest extends TestCase
 
     private function makeUser(array $overrides = []): User
     {
-        return User::create(array_merge([
+        // forceCreate: overrides commonly include role_id/status, neither of
+        // which is mass-assignable on User (see the model).
+        return User::forceCreate(array_merge([
             'full_name' => 'Amina Test',
             'phone' => '+213555222333',
             'email' => 'amina@example.com',

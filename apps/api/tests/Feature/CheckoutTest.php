@@ -8,6 +8,7 @@ use App\Models\Address;
 use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Commune;
+use App\Models\DeliveryFee;
 use App\Models\Inventory;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -60,6 +61,7 @@ class CheckoutTest extends TestCase
     private function makeCommune(): Commune
     {
         $wilaya = Wilaya::create(['code' => '16', 'name_ar' => 'الجزائر', 'name_fr' => 'Alger', 'name_en' => 'Algiers']);
+        DeliveryFee::create(['wilaya_code' => $wilaya->code, 'delivery_method' => 'home']);
 
         return Commune::create([
             'wilaya_code' => $wilaya->code,

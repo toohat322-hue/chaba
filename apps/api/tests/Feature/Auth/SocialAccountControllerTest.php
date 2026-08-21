@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Services\SocialLinkTicketService;
+use App\Services\SocialStateService;
 use App\Services\TokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -131,9 +132,9 @@ class SocialAccountControllerTest extends TestCase
 
         $location = $response->headers->get('Location');
         parse_str(parse_url($location, PHP_URL_QUERY), $query);
-        $nonce = collect($response->headers->getCookies())->first(fn ($c) => $c->getName() === \App\Services\SocialStateService::COOKIE_NAME)?->getValue();
+        $nonce = collect($response->headers->getCookies())->first(fn ($c) => $c->getName() === SocialStateService::COOKIE_NAME)?->getValue();
 
-        $decoded = app(\App\Services\SocialStateService::class)->decode($query['state'], $nonce);
+        $decoded = app(SocialStateService::class)->decode($query['state'], $nonce);
         $this->assertSame($user->id, $decoded['link_user_id']);
     }
 }

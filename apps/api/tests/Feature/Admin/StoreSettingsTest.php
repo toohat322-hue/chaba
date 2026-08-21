@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Category;
 use App\Models\Commune;
+use App\Models\DeliveryFee;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -79,6 +80,7 @@ class StoreSettingsTest extends TestCase
         Inventory::create(['variant_id' => $variant->id, 'stock_quantity' => 10, 'reserved_quantity' => 0, 'low_stock_threshold' => 5]);
 
         $wilaya = Wilaya::create(['code' => '16', 'name_ar' => 'الجزائر', 'name_fr' => 'Alger', 'name_en' => 'Algiers']);
+        DeliveryFee::create(['wilaya_code' => $wilaya->code, 'delivery_method' => 'home']);
         $commune = Commune::create(['wilaya_code' => $wilaya->code, 'name_ar' => 'الوسطى', 'name_fr' => 'Centre', 'name_en' => 'Centre']);
 
         $guestHeaders = ['X-Guest-Session' => 'tax-test-session'];

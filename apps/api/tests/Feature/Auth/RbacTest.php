@@ -54,7 +54,7 @@ class RbacTest extends TestCase
         $role = Role::create(['name' => 'Order Manager Test', 'description' => 'test']);
         $role->permissions()->attach($permission);
 
-        $user = User::create([
+        $user = User::forceCreate([
             'full_name' => 'Order Manager',
             'phone' => '+213555777889',
             'password_hash' => bcrypt('password123'),

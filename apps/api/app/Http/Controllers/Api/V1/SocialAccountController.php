@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
-use App\Models\SocialAccount;
 use App\Services\SocialLinkTicketService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;

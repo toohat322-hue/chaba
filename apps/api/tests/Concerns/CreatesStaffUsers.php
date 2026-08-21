@@ -27,7 +27,7 @@ trait CreatesStaffUsers
     {
         $role = Role::where('name', $roleName)->firstOrFail();
 
-        $user = User::create([
+        $user = User::forceCreate([
             'full_name' => $roleName.' Test User',
             'phone' => '+2135'.substr(str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT), 0, 8),
             'password_hash' => bcrypt(Str::random(16)),

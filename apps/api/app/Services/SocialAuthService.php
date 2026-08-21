@@ -25,7 +25,7 @@ class SocialAuthService
 
     /**
      * @return array{user: array, access_token: string, refresh_token: string, token_type: string, expires_in: int}
-     *         |array{requires_two_factor: true, two_factor_token: string, expires_in: int}
+     *                                                                                                              |array{requires_two_factor: true, two_factor_token: string, expires_in: int}
      */
     public function resolve(
         string $provider,
@@ -77,7 +77,11 @@ class SocialAuthService
         // all — e.g. a returning Apple user who didn't resend it, or a
         // provider that genuinely has none) — a brand-new customer account.
         $user = DB::transaction(function () use ($provider, $providerId, $email, $name) {
-            $newUser = User::create([
+            // forceFill: role_id/is_guest/status aren't mass-assignable on
+            // User (see the model) — this is a legitimate place to set them
+            // for a brand-new social-signup account.
+            $newUser = new User;
+            $newUser->forceFill([
                 'full_name' => $name ?: 'CHABA Customer',
                 'phone' => null,
                 'email' => $email,
@@ -86,7 +90,7 @@ class SocialAuthService
                 'preferred_language' => 'ar',
                 'is_guest' => false,
                 'status' => 'active',
-            ]);
+            ])->save();
 
             SocialAccount::create([
                 'user_id' => $newUser->id,

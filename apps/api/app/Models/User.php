@@ -13,15 +13,22 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasUuids;
 
+    // role_id/status/is_guest are deliberately excluded — every current
+    // caller scopes its own request tightly enough that this doesn't matter
+    // today (UpdateProfileRequest never validates them, StaffController
+    // uses ->only([...])), but the model itself had no guard: the moment
+    // any future endpoint did $user->fill($request->all()) with a looser
+    // request, a customer could set their own role_id to an admin role or
+    // flip status back to 'active' after being blocked. Privileged code
+    // paths (registration, staff creation/role changes) use forceFill()
+    // instead, which makes the privilege escalation explicit at the call
+    // site rather than silently possible through the model.
     protected $fillable = [
         'full_name',
         'phone',
         'email',
         'password_hash',
-        'role_id',
         'preferred_language',
-        'is_guest',
-        'status',
         'two_factor_secret',
         'two_factor_confirmed_at',
         'two_factor_recovery_codes',

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Exceptions\ApiException;
 use App\Models\Category;
 use App\Models\Commune;
+use App\Models\DeliveryFee;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -52,6 +53,7 @@ class PaymentGatewayTest extends TestCase
     private function makeCommune(): Commune
     {
         $wilaya = Wilaya::create(['code' => '16', 'name_ar' => 'الجزائر', 'name_fr' => 'Alger', 'name_en' => 'Algiers']);
+        DeliveryFee::create(['wilaya_code' => $wilaya->code, 'delivery_method' => 'home']);
 
         return Commune::create([
             'wilaya_code' => $wilaya->code,
