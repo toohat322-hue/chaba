@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatPrice, formatSize } from "@/lib/currency";
 import { Link } from "@/i18n/navigation";
@@ -13,11 +14,24 @@ export function CartLineItem({ item, compact = false }: { item: CartItemDetail; 
   const locale = useLocale() as Locale;
   const t = useTranslations("Cart");
   const { updateItem, removeItem } = useCart();
+  // Guards two things the +/- buttons didn't before: rapid clicks racing
+  // each other off the same stale item.quantity (each click computed
+  // quantity±1 from render-time props, so quick double/triple-clicks lost
+  // updates), and "-" at quantity 1 silently sending quantity:0 to the API
+  // instead of going through the explicit remove action.
+  const [pending, setPending] = useState(false);
 
   const sizeLabel = item.size_value != null && item.size_unit ? formatSize(item.size_value, item.size_unit, locale) : item.size;
   const variantLabel = [item.color, sizeLabel].filter(Boolean).join(" / ");
   const atMax = item.quantity >= item.available_quantity;
   const imageSize = compact ? "h-16 w-16" : "h-24 w-24";
+
+  function changeQuantity(nextQuantity: number) {
+    setPending(true);
+    updateItem(item.id, nextQuantity)
+      .catch((error) => console.error("Failed to update item", error))
+      .finally(() => setPending(false));
+  }
 
   return (
     <div className={`flex gap-4 border-b border-primary/10 last:border-b-0 ${compact ? "py-4" : "py-6"}`}>
@@ -56,10 +70,9 @@ export function CartLineItem({ item, compact = false }: { item: CartItemDetail; 
           <div className="flex items-center gap-3 rounded-full border border-primary/15 px-3 py-1">
             <button
               type="button"
-              onClick={() =>
-                updateItem(item.id, item.quantity - 1).catch((error) => console.error("Failed to update item", error))
-              }
-              className="text-body text-ink/70 hover:text-primary"
+              onClick={() => changeQuantity(item.quantity - 1)}
+              disabled={pending || item.quantity <= 1}
+              className="text-body text-ink/70 hover:text-primary disabled:opacity-30"
               aria-label="-"
             >
               −
@@ -67,10 +80,8 @@ export function CartLineItem({ item, compact = false }: { item: CartItemDetail; 
             <span className="w-6 text-center text-body text-ink">{item.quantity}</span>
             <button
               type="button"
-              onClick={() =>
-                updateItem(item.id, item.quantity + 1).catch((error) => console.error("Failed to update item", error))
-              }
-              disabled={atMax}
+              onClick={() => changeQuantity(item.quantity + 1)}
+              disabled={pending || atMax}
               className="text-body text-ink/70 hover:text-primary disabled:opacity-30"
               aria-label="+"
             >

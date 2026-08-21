@@ -23,6 +23,7 @@ export default function AdminCouponsPage() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -50,8 +51,16 @@ export default function AdminCouponsPage() {
 
   async function handleDeactivate(id: string) {
     if (!window.confirm(t("confirmDeactivateCoupon"))) return;
-    await deactivateAdminCoupon(id);
-    load();
+    setError(null);
+    try {
+      await deactivateAdminCoupon(id);
+      load();
+    } catch {
+      // Previously silent — a failed deactivation (permission/conflict
+      // error, network blip) looked identical to a successful one, so an
+      // admin could believe a coupon was turned off while it stayed live.
+      setError(t("errorGeneric"));
+    }
   }
 
   function formatValue(coupon: AdminCoupon): string {
@@ -74,6 +83,8 @@ export default function AdminCouponsPage() {
           </button>
         )}
       </div>
+
+      {error && <p className="mb-4 text-small text-error">{error}</p>}
 
       {adding && (
         <div className="mb-6 rounded-2xl bg-white p-6 shadow-soft">
