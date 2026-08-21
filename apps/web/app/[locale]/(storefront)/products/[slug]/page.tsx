@@ -97,7 +97,12 @@ export default async function ProductPage({ params }: Props) {
       />
 
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-8 sm:px-6 sm:py-12 md:grid-cols-2 md:gap-14 lg:px-8">
-        <ProductGallery images={product.images} title={product.name[loc]} />
+        {/* key={product.id}: without it, navigating from one product page to
+            another doesn't remount this (same JSX position, App Router
+            reconciles in place) — its activeIndex state survives with an
+            index that may not exist in the new product's images, leaving
+            every cross-fade layer at opacity-0 until a thumbnail is clicked. */}
+        <ProductGallery key={product.id} images={product.images} title={product.name[loc]} />
 
         <div className="flex flex-col gap-7">
           <div>
@@ -115,12 +120,19 @@ export default async function ProductPage({ params }: Props) {
             )}
           </div>
 
-          {product.variants.length > 0 && (
-            <VariantSelector variants={product.variants} locale={loc}>
+          {product.variants.length > 0 ? (
+            <VariantSelector key={product.id} variants={product.variants} locale={loc}>
               {product.description[loc] && (
                 <p className="text-body leading-relaxed text-ink/70">{product.description[loc]}</p>
               )}
             </VariantSelector>
+          ) : (
+            // The description was previously only rendered as VariantSelector's
+            // children, so a variant-less product (unpublished/misconfigured
+            // catalog entry) showed no description at all.
+            product.description[loc] && (
+              <p className="text-body leading-relaxed text-ink/70">{product.description[loc]}</p>
+            )
           )}
         </div>
       </div>

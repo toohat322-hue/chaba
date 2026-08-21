@@ -36,7 +36,24 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     headers: { Accept: "application/json", ...init?.headers },
   });
 
-  const envelope: ApiEnvelope<T> = await response.json();
+  // response.json() is never guarded by response.ok here on purpose — every
+  // real API response (success or error) is JSON per the envelope contract.
+  // But an infra-level failure (proxy/gateway timeout, an HTML error page
+  // from a reverse proxy) isn't a real API response, so both possible
+  // failures — a body that isn't JSON at all, and JSON that doesn't match
+  // the envelope shape — are turned into a normal ApiError instead of an
+  // uncaught SyntaxError/TypeError that every caller pattern-matching on
+  // `error instanceof ApiError` would otherwise miss.
+  let envelope: ApiEnvelope<T> | null = null;
+  try {
+    envelope = await response.json();
+  } catch {
+    envelope = null;
+  }
+
+  if (!envelope || typeof envelope.success !== "boolean") {
+    throw new ApiError("unexpected_response", "Unexpected response from the server.", response.status);
+  }
 
   if (!envelope.success) {
     throw new ApiError(envelope.error.code, envelope.error.message, response.status, envelope.error.field_errors);
@@ -452,6 +469,27 @@ async function refreshAdminSession(): Promise<string | null> {
   }
 }
 
+// Two admin requests that both 401 around the same time (e.g. the
+// dashboard's two concurrent fetches on mount) would otherwise each call
+// refreshAdminSession() independently — both read the same still-stale
+// refresh token, both POST /auth/refresh, and since refresh tokens are
+// single-use/rotating, whichever request's response arrives second gets
+// "invalid token" on an already-consumed token and wipes out the tokens
+// the other one just set, silently logging the admin out mid-session
+// despite the refresh having actually succeeded. Sharing one in-flight
+// promise makes every concurrent 401 await the same refresh instead.
+let adminRefreshPromise: Promise<string | null> | null = null;
+
+function refreshAdminSessionOnce(): Promise<string | null> {
+  if (!adminRefreshPromise) {
+    adminRefreshPromise = refreshAdminSession().finally(() => {
+      adminRefreshPromise = null;
+    });
+  }
+
+  return adminRefreshPromise;
+}
+
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const { access } = getAdminTokens();
 
@@ -462,7 +500,7 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
-      const refreshedAccess = await refreshAdminSession();
+      const refreshedAccess = await refreshAdminSessionOnce();
       if (refreshedAccess) {
         return apiFetch<T>(path, {
           ...init,
@@ -495,9 +533,21 @@ export function getAdminDashboard(): Promise<{
 export async function downloadAdminCsv(path: string, filename: string): Promise<void> {
   const { access } = getAdminTokens();
 
-  const response = await fetch(`${API_URL}${path}`, {
+  let response = await fetch(`${API_URL}${path}`, {
     headers: { Authorization: `Bearer ${access ?? ""}` },
   });
+
+  // Unlike adminFetch, this never went through apiFetch, so it never
+  // self-healed an expired token — every other admin action would
+  // transparently refresh and succeed, but export just failed outright.
+  if (response.status === 401) {
+    const refreshedAccess = await refreshAdminSessionOnce();
+    if (refreshedAccess) {
+      response = await fetch(`${API_URL}${path}`, {
+        headers: { Authorization: `Bearer ${refreshedAccess}` },
+      });
+    }
+  }
 
   if (!response.ok) {
     throw new ApiError("export_failed", "Unable to export this file.", response.status);
@@ -1294,6 +1344,22 @@ async function refreshCustomerSession(): Promise<string | null> {
   }
 }
 
+// Same in-flight-dedup fix as adminRefreshPromise above, for the same
+// reason: concurrent customer requests (account page firing off orders +
+// notifications at once) can otherwise both race a single-use refresh
+// token and log the customer out despite the refresh succeeding.
+let customerRefreshPromise: Promise<string | null> | null = null;
+
+function refreshCustomerSessionOnce(): Promise<string | null> {
+  if (!customerRefreshPromise) {
+    customerRefreshPromise = refreshCustomerSession().finally(() => {
+      customerRefreshPromise = null;
+    });
+  }
+
+  return customerRefreshPromise;
+}
+
 async function customerFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const { access } = getCustomerTokens();
 
@@ -1304,7 +1370,7 @@ async function customerFetch<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
-      const refreshedAccess = await refreshCustomerSession();
+      const refreshedAccess = await refreshCustomerSessionOnce();
       if (refreshedAccess) {
         return apiFetch<T>(path, {
           ...init,

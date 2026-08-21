@@ -100,6 +100,14 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
     setCustomer(null);
     window.sessionStorage.removeItem("chaba_customer_user");
     clearCustomerTokens();
+
+    // CartProvider only ever reloads on this event (see its effect) or on
+    // mount — without dispatching it here, the cart drawer/page keeps
+    // showing this account's cart after logout (tokens are cleared, but
+    // the in-memory `cart` state isn't), and on a shared device the next
+    // guest/different customer could act on line items that are no longer
+    // theirs.
+    window.dispatchEvent(new Event("chaba:cart-updated"));
   }
 
   return (

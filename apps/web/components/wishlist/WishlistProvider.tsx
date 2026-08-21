@@ -25,6 +25,21 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    // Same identity-changed signal CartProvider listens for (see its
+    // comment) — without this, a login/logout doesn't reload the wishlist
+    // either, so it keeps showing the previous identity's items.
+    function onIdentityChanged() {
+      getWishlist()
+        .then(setItems)
+        .catch((error) => console.error("Failed to reload wishlist", error));
+    }
+
+    window.addEventListener("chaba:cart-updated", onIdentityChanged);
+
+    return () => window.removeEventListener("chaba:cart-updated", onIdentityChanged);
+  }, []);
+
   const has = useCallback((productId: string) => items.some((item) => item.product_id === productId), [items]);
 
   const add = useCallback(async (productId: string) => {

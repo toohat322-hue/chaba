@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 
@@ -35,6 +36,7 @@ export function LanguageSwitcher() {
   const t = useTranslations("Nav");
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +63,11 @@ export function LanguageSwitcher() {
   function handleSelect(nextLocale: Locale) {
     setOpen(false);
     if (nextLocale === locale) return;
-    router.replace(pathname, { locale: nextLocale });
+    // usePathname() (next-intl's) strips the query string — passing just
+    // `pathname` here silently drops search/sort/pagination state, e.g.
+    // /category/oud-oil?sort=rating -> /category/oud-oil on every switch.
+    const query = Object.fromEntries(searchParams.entries());
+    router.replace({ pathname, query }, { locale: nextLocale });
   }
 
   return (

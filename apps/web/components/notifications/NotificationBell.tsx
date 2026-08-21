@@ -47,20 +47,35 @@ export function NotificationBell() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!customer || loaded) return;
+    // Keyed on customer.id (not a one-shot `loaded` flag) — without this,
+    // switching accounts on the same tab without a full reload (log out,
+    // log in as someone else) kept showing the previous customer's
+    // notifications and unread badge, since the old fetch had already set
+    // loaded=true and the effect never ran again.
+    if (!customer) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing stale data from the previous identity when it disappears, not deriving state from a render
+      setItems([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    let cancelled = false;
 
     getNotifications(1)
       .then((res) => {
+        if (cancelled) return;
         setItems(res.items);
         setUnreadCount(res.unread_count);
       })
-      .catch(() => undefined)
-      .finally(() => setLoaded(true));
-  }, [customer, loaded]);
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [customer]);
 
   useEffect(() => {
     if (!open) return;
