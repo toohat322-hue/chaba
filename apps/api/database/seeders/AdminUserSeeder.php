@@ -14,8 +14,16 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $phone = PhoneNormalizer::toE164(env('ADMIN_SEED_PHONE', '0555000000'));
-        $password = env('ADMIN_SEED_PASSWORD', 'ChangeMe123!');
+        $rawPhone = env('ADMIN_SEED_PHONE');
+        $password = env('ADMIN_SEED_PASSWORD');
+
+        if (! $rawPhone || ! $password) {
+            $this->command?->warn('ADMIN_SEED_PHONE / ADMIN_SEED_PASSWORD are not set; skipping AdminUserSeeder.');
+
+            return;
+        }
+
+        $phone = PhoneNormalizer::toE164($rawPhone);
 
         if (! $phone) {
             $this->command?->warn('ADMIN_SEED_PHONE is not a valid Algerian number; skipping AdminUserSeeder.');

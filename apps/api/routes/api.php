@@ -107,7 +107,11 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/wilayas', [WilayaController::class, 'index']);
     Route::get('/communes', [CommuneController::class, 'index']);
     Route::get('/delivery-fees/{wilaya_code}', [DeliveryFeeController::class, 'show']);
-    Route::get('/orders/track', [OrderTrackController::class, 'show']);
+    // Order numbers are a plain incrementing sequence (CHB-{year}-{seq}), so
+    // this must be throttled like every other public lookup/write endpoint
+    // above — otherwise it's an unbounded enumeration surface for guessing a
+    // phone number's orders.
+    Route::get('/orders/track', [OrderTrackController::class, 'show'])->middleware('throttle:10,1');
 
     // Checkout: same guest/auth duality as Cart (no auth:sanctum requirement
     // — CartService::resolveCart handles both via X-Guest-Session or token).
@@ -203,20 +207,26 @@ Route::prefix('v1')->group(function (): void {
 
     // Cart: intentionally no auth:sanctum middleware — guests (identified by
     // the X-Guest-Session header) and logged-in users share these same
-    // routes. CartService resolves whichever applies per-request.
-    Route::get('/cart', [CartController::class, 'show']);
-    Route::post('/cart/items', [CartController::class, 'store']);
-    Route::patch('/cart/items/{item}', [CartController::class, 'update']);
-    Route::delete('/cart/items/{item}', [CartController::class, 'destroy']);
-    Route::post('/cart/coupon', [CartController::class, 'applyCoupon']);
-    Route::delete('/cart/coupon', [CartController::class, 'removeCoupon']);
+    // routes. CartService resolves whichever applies per-request. Throttled
+    // per-IP like the other guest-writable endpoints above — a fresh
+    // X-Guest-Session is free to mint, so without this an attacker can both
+    // brute-force /cart/coupon codes and spam /cart/items to reserve (and
+    // starve) real stock via CartService's 30-minute stock reservation.
+    Route::middleware('throttle:60,1')->group(function (): void {
+        Route::get('/cart', [CartController::class, 'show']);
+        Route::post('/cart/items', [CartController::class, 'store']);
+        Route::patch('/cart/items/{item}', [CartController::class, 'update']);
+        Route::delete('/cart/items/{item}', [CartController::class, 'destroy']);
+        Route::post('/cart/coupon', [CartController::class, 'applyCoupon']);
+        Route::delete('/cart/coupon', [CartController::class, 'removeCoupon']);
 
-    // Wishlist: same guest/auth duality as Cart — no auth:sanctum
-    // requirement, WishlistService::resolveIdentity handles both.
-    Route::get('/wishlist', [WishlistController::class, 'index']);
-    Route::post('/wishlist', [WishlistController::class, 'store']);
-    Route::delete('/wishlist', [WishlistController::class, 'clear']);
-    Route::delete('/wishlist/{product}', [WishlistController::class, 'destroy']);
+        // Wishlist: same guest/auth duality as Cart — no auth:sanctum
+        // requirement, WishlistService::resolveIdentity handles both.
+        Route::get('/wishlist', [WishlistController::class, 'index']);
+        Route::post('/wishlist', [WishlistController::class, 'store']);
+        Route::delete('/wishlist', [WishlistController::class, 'clear']);
+        Route::delete('/wishlist/{product}', [WishlistController::class, 'destroy']);
+    });
 
     // Admin (PRD §19/§19.1) — every route requires a valid access token AND
     // the specific permission its module needs; RBAC (roles/permissions) was

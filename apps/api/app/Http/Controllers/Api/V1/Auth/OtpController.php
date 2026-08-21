@@ -10,6 +10,7 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\OtpService;
 use App\Services\TokenService;
+use App\Services\TwoFactorService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 
@@ -18,6 +19,7 @@ class OtpController extends Controller
     public function __construct(
         private readonly OtpService $otp,
         private readonly TokenService $tokens,
+        private readonly TwoFactorService $twoFactor,
     ) {}
 
     public function send(SendOtpRequest $request): JsonResponse
@@ -58,7 +60,29 @@ class OtpController extends Controller
             return ApiResponse::success(['user' => new UserResource($user)]);
         }
 
-        // purpose === 'login': OTP acts as a passwordless login method (PRD §7.1).
+        // purpose === 'login': OTP acts as a passwordless login method (PRD §7.1),
+        // but only for ordinary customers — must match every guard
+        // LoginController/SocialAuthService apply, or it becomes a bypass for
+        // those: staff accounts never authenticate this way (mirrors
+        // SocialAuthService's "social login must never grant access to a
+        // staff account"), a blocked account can't log back in through it
+        // (mirrors LoginController), and a verified OTP is only the first
+        // factor — 2FA still applies exactly like the password login path.
+        if ($user->role_id !== null) {
+            throw new ApiException('otp_invalid', 'The code you entered is incorrect.', 400);
+        }
+
+        if ($user->status === 'blocked') {
+            throw new ApiException('account_blocked', 'This account has been blocked.', 403);
+        }
+
+        if ($this->twoFactor->isEnabled($user)) {
+            return ApiResponse::success([
+                'requires_two_factor' => true,
+                ...$this->tokens->issuePendingTwoFactorToken($user),
+            ]);
+        }
+
         return ApiResponse::success([
             'user' => new UserResource($user),
             ...$this->tokens->issuePair($user),

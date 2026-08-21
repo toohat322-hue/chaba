@@ -2,14 +2,20 @@
 
 namespace App\Services;
 
+use App\Exceptions\ApiException;
 use App\Models\User;
 use App\Support\Totp;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 
 class TwoFactorService
 {
     private const RECOVERY_CODE_COUNT = 8;
+
+    private const MAX_LOGIN_ATTEMPTS = 5;
+
+    private const LOGIN_LOCKOUT_TTL_SECONDS = 900;
 
     public function startSetup(User $user): array
     {
@@ -46,13 +52,41 @@ class TwoFactorService
         return $user->two_factor_confirmed_at !== null;
     }
 
+    /**
+     * Per-user (not per-token) attempt lockout — a valid password alone lets
+     * an attacker mint a fresh 5-minute pending token indefinitely, so the
+     * counter has to survive across pending tokens rather than reset with
+     * each one, the same way OtpService::verify locks out per phone number.
+     */
     public function verifyLoginCode(User $user, string $code): bool
     {
-        if ($user->two_factor_secret && Totp::verify($user->two_factor_secret, $code)) {
+        $lockoutKey = $this->key('lockout', $user);
+
+        if (Redis::exists($lockoutKey)) {
+            throw new ApiException('two_factor_locked', 'Too many incorrect attempts. Try again later.', 429);
+        }
+
+        if (($user->two_factor_secret && Totp::verify($user->two_factor_secret, $code)) || $this->consumeRecoveryCode($user, $code)) {
+            Redis::del($this->key('attempts', $user));
+
             return true;
         }
 
-        return $this->consumeRecoveryCode($user, $code);
+        $attemptsKey = $this->key('attempts', $user);
+        $attempts = Redis::incr($attemptsKey);
+        Redis::expire($attemptsKey, self::LOGIN_LOCKOUT_TTL_SECONDS);
+
+        if ($attempts >= self::MAX_LOGIN_ATTEMPTS) {
+            Redis::setex($lockoutKey, self::LOGIN_LOCKOUT_TTL_SECONDS, '1');
+            Redis::del($attemptsKey);
+        }
+
+        return false;
+    }
+
+    private function key(string $type, User $user): string
+    {
+        return "2fa:{$type}:{$user->id}";
     }
 
     private function consumeRecoveryCode(User $user, string $code): bool

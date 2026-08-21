@@ -19,14 +19,18 @@ class PasswordResetController extends Controller
     {
         $phone = $request->string('phone')->toString();
 
+        // OTP is verified before the account lookup (and both a missing
+        // account and a missing/expired code are indistinguishable to the
+        // caller) so this endpoint can't be used to enumerate which phone
+        // numbers have accounts — mirrors OtpController::send.
+        if (! $this->otp->verify($phone, 'password_reset', $request->string('code')->toString())) {
+            throw new ApiException('otp_invalid', 'The code you entered is incorrect.', 400);
+        }
+
         $user = User::where('phone', $phone)->first();
 
         if (! $user) {
             throw new ApiException('not_found', 'No account found for this phone number.', 404);
-        }
-
-        if (! $this->otp->verify($phone, 'password_reset', $request->string('code')->toString())) {
-            throw new ApiException('otp_invalid', 'The code you entered is incorrect.', 400);
         }
 
         $user->forceFill([
