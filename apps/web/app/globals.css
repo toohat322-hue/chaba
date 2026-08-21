@@ -1,0 +1,352 @@
+@import "tailwindcss";
+
+/*
+ * CHABA design tokens — PRD §9.
+ * Colors, type scale and shadow token defined here become Tailwind utilities
+ * (bg-primary, text-h2, shadow-soft, ...) via Tailwind v4's CSS-based theme.
+ * Border radius intentionally uses Tailwind's default scale unmodified:
+ * rounded-lg (8px) = inputs/buttons, rounded-2xl (16px) = cards,
+ * rounded-3xl (24px) = modals/sheets — already matches §9 without overrides.
+ * Spacing likewise uses Tailwind's default 4px-based scale, which already
+ * contains every step PRD §9 calls out (4/8/12/16/24/32/48/64).
+ */
+@theme {
+  --color-primary: #0e3b36;
+  --color-accent: #c9a24b;
+  --color-background: #faf7f0;
+  --color-ink: #22272b;
+  --color-success: #3f8f5f;
+  --color-error: #b3413b;
+  --color-warning: #c98a2c;
+
+  --text-display: 2.5rem;
+  --text-display--line-height: 1.4;
+  --text-h1: 1.75rem;
+  --text-h1--line-height: 1.4;
+  --text-h2: 1.375rem;
+  --text-h2--line-height: 1.5;
+  --text-h3: 1.125rem;
+  --text-h3--line-height: 1.5;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.6;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.5;
+
+  --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lift: 0 12px 32px rgba(14, 59, 54, 0.14);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-ink);
+}
+
+/* Arabic (RTL) uses Cairo as the primary typeface; French/English (LTR) use
+   Inter — set per the `dir` attribute LocaleLayout puts on <html>, so Arabic
+   is never treated as a mirrored afterthought of an LTR font choice. */
+:root:dir(rtl) body {
+  font-family: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root:dir(ltr) body {
+  font-family: var(--font-latin), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Marquee ticker (home/MarqueeStrip.tsx). Two directional keyframes so the
+   scroll always moves toward the locale's natural "forward" reading
+   direction — transform is physical-pixel-based, so `dir` alone can't flip
+   it the way logical CSS properties do elsewhere in this file. */
+@keyframes marquee-ltr {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-rtl {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(50%);
+  }
+}
+
+:root:dir(ltr) .animate-marquee {
+  animation: marquee-ltr 24s linear infinite;
+}
+
+:root:dir(rtl) .animate-marquee {
+  animation: marquee-rtl 24s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}
+
+/* Cart/mobile-nav Drawer (components/ui/Drawer.tsx). transform is
+   physical-pixel-based (same limitation as the marquee above), so the
+   panel's resting position is set per-`dir` and `.is-open` simply
+   overrides to 0 regardless of direction. */
+.drawer-panel {
+  transition: transform 300ms ease;
+}
+
+:root:dir(ltr) .drawer-panel {
+  transform: translateX(100%);
+}
+
+:root:dir(rtl) .drawer-panel {
+  transform: translateX(-100%);
+}
+
+/* `.is-open` must match (or exceed) the specificity of the two rules above —
+   `:root:dir()` counts as a pseudo-class, so a plain `.drawer-panel.is-open`
+   rule is one selector class short and silently loses the cascade, leaving
+   the panel translated fully off-screen even while "open". */
+:root:dir(ltr) .drawer-panel.is-open,
+:root:dir(rtl) .drawer-panel.is-open {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer-panel {
+    transition: none;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateY(0.5rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-toast-in {
+    animation: none;
+  }
+}
+
+/* WhatsAppButton (components/layout/WhatsAppButton.tsx). Entrance settles in
+   just after first paint rather than popping in with the rest of the page,
+   and the ring "breathes" (expand-and-fade, then a quiet pause) instead of
+   looping continuously, so the button reads as a calm, deliberate touch
+   rather than a blinking distraction. */
+@keyframes fab-in {
+  from {
+    transform: translateY(0.75rem) scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-fab-in {
+  animation: fab-in 500ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
+}
+
+@keyframes fab-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  65%,
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+.animate-fab-ring {
+  animation: fab-ring 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fab-in,
+  .animate-fab-ring {
+    animation: none;
+  }
+}
+
+/* HeroBanner (components/home/HeroBanner.tsx). A very slow, subtle zoom on
+   the hero photo — cheap (transform-only, one element) and reads as
+   deliberate/cinematic rather than distracting. */
+@keyframes hero-zoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
+.animate-hero-zoom {
+  animation: hero-zoom 16s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-zoom {
+    animation: none;
+  }
+}
+
+/* HeroSlider (components/home/HeroSlider.tsx). Slide-to-slide crossfade is a
+   plain opacity/scale transition (symmetric, no :root:dir() split needed —
+   unlike the marquee/drawer above, nothing here moves left/right). Only the
+   staggered title/subtitle/CTA entrance is a keyframe, and it only moves
+   vertically for the same reason. */
+@keyframes hero-slide-content-in {
+  from {
+    transform: translateY(0.75rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-hero-slide-content {
+  animation: hero-slide-content-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-slide-content {
+    animation: none;
+  }
+}
+
+/* Cart/wishlist header badges (components/layout/CartBadge.tsx,
+   WishlistBadge.tsx). Quick pop-in, no delay — unlike .animate-fab-in this
+   needs to feel immediate since it appears right after an add/remove. */
+@keyframes badge-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-badge-pop {
+  animation: badge-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-badge-pop {
+    animation: none;
+  }
+}
+
+/* SearchOverlay (components/layout/SearchOverlay.tsx). Vertical slide, so —
+   unlike the horizontal Drawer above — the same transform works for both
+   directions; no `:root:dir()` split needed. */
+.search-overlay-panel {
+  transform: translateY(-100%);
+  transition: transform 250ms ease;
+}
+
+.search-overlay-panel.is-open {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-overlay-panel {
+    transition: none;
+  }
+}
+
+/* ShabaLoader (components/ui/ShabaLoader.tsx). Fade-in + a very slight scale
+   (95% -> 100%), delayed 150ms — the delay is the anti-flicker mechanism:
+   a load that resolves before 150ms never renders the logo visibly at all,
+   so brief/instant loads don't produce a flash-then-gone loader. The glow
+   is a slow, quiet opacity breathe, not a spin/pulse — reads as a calm
+   "still here" cue rather than active motion. */
+@keyframes shaba-loader-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-shaba-loader {
+  animation: shaba-loader-in 500ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both;
+}
+
+@keyframes shaba-loader-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.animate-shaba-loader-glow {
+  animation: shaba-loader-glow 2.4s ease-in-out 150ms infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shaba-loader,
+  .animate-shaba-loader-glow {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ShabaLoaderOverlay (components/ui/ShabaLoaderOverlay.tsx). Global,
+   always-mounted route-transition overlay — toggles opacity/pointer-events
+   via `.is-visible` rather than mounting/unmounting, the same pattern as
+   `.drawer-panel`/`.search-overlay-panel` above (lets the fade-out finish
+   cleanly with no unmount race). The backdrop is the site's own cream
+   background token blended to translucent, not a separate solid/white
+   screen — the page being navigated away from stays visible underneath. */
+.shaba-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-background) 82%, transparent);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+
+.shaba-loader-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shaba-loader-overlay {
+    transition: none;
+  }
+}
+

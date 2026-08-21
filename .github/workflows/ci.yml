@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  api:
+    name: API (Laravel)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: chaba_test
+          POSTGRES_USER: chaba
+          POSTGRES_PASSWORD: chaba
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chaba -d chaba_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_pgsql, pgsql
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Lint (Pint)
+        run: ./vendor/bin/pint --test
+
+      - name: Configure environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+        env:
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: chaba_test
+          DB_USERNAME: chaba
+          DB_PASSWORD: chaba
+          REDIS_HOST: 127.0.0.1
+
+      - name: Migration dry-run
+        run: php artisan migrate --force
+        env:
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: chaba_test
+          DB_USERNAME: chaba
+          DB_PASSWORD: chaba
+          REDIS_HOST: 127.0.0.1
+
+      - name: Seed reference data
+        run: php artisan db:seed --force
+        env:
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: chaba_test
+          DB_USERNAME: chaba
+          DB_PASSWORD: chaba
+          REDIS_HOST: 127.0.0.1
+
+      - name: Run tests
+        run: php artisan test
+        env:
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: chaba_test
+          DB_USERNAME: chaba
+          DB_PASSWORD: chaba
+          REDIS_HOST: 127.0.0.1
+
+  web:
+    name: Web (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build

@@ -1,0 +1,14 @@
+# Nested apps (apps/api, apps/web) each carry their own .gitignore for
+# framework-specific artifacts (vendor/, node_modules/, .next/, .env, ...).
+# This file only covers monorepo-root-level concerns.
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Docker
+docker-compose.override.yml
