@@ -19,7 +19,14 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:3000')],
+    // ADMIN_URL is the admin portal's own origin (apps/web's ADMIN_HOST,
+    // with scheme — see proxy.ts) when it's served on a separate host from
+    // the storefront; array_filter drops it when unset so this stays
+    // exactly as it was for any environment that hasn't adopted that yet.
+    'allowed_origins' => array_values(array_filter([
+        env('FRONTEND_URL', 'http://localhost:3000'),
+        env('ADMIN_URL'),
+    ])),
 
     'allowed_origins_patterns' => [],
 
