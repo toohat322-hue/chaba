@@ -180,7 +180,7 @@ export function ProductForm({ productId, initial }: { productId?: string; initia
       if (productId) {
         await updateAdminProduct(productId, shared);
         toast.show({ message: t("saveSuccess") });
-        router.push("/admin/products");
+        router.push("/adminportal/products");
         return;
       }
 
@@ -216,14 +216,14 @@ export function ProductForm({ productId, initial }: { productId?: string; initia
 
       if (stagedImages.length === 0) {
         toast.show({ message: t("productCreated") });
-        router.push(`/admin/products/${created.id}/edit`);
+        router.push(`/adminportal/products/${created.id}/edit`);
         return;
       }
 
       const results = await Promise.all(stagedImages.map((staged) => uploadStagedImage(created.id, staged)));
       if (results.every(Boolean)) {
         toast.show({ message: t("productCreated") });
-        router.push(`/admin/products/${created.id}/edit`);
+        router.push(`/adminportal/products/${created.id}/edit`);
       }
       // If any image failed, stay put: the images section below shows each
       // status with a retry button, plus an always-visible link onward so
@@ -287,7 +287,7 @@ export function ProductForm({ productId, initial }: { productId?: string; initia
             })}
           </div>
           <Link
-            href={`/admin/products/${createdProductId}/edit`}
+            href={`/adminportal/products/${createdProductId}/edit`}
             className="inline-block text-small font-semibold text-primary hover:underline"
           >
             {t("continueToProduct")} →
@@ -521,7 +521,7 @@ export function ProductForm({ productId, initial }: { productId?: string; initia
           {saving && <span className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />}
           {saving ? t("savingProduct") : t("save")}
         </button>
-        <Link href="/admin/products" className="text-small text-ink/60 hover:text-ink">
+        <Link href="/adminportal/products" className="text-small text-ink/60 hover:text-ink">
           {t("cancel")}
         </Link>
       </div>

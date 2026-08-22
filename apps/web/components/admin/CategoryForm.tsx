@@ -70,7 +70,7 @@ export function CategoryForm({ categoryId, initial }: { categoryId?: string; ini
       } else {
         await createAdminCategory(payload);
       }
-      router.push("/admin/categories");
+      router.push("/adminportal/categories");
     } catch {
       setError(t("errorGeneric"));
       setSaving(false);
@@ -142,7 +142,7 @@ export function CategoryForm({ categoryId, initial }: { categoryId?: string; ini
         >
           {t("save")}
         </button>
-        <Link href="/admin/categories" className="text-small text-ink/60 hover:text-ink">
+        <Link href="/adminportal/categories" className="text-small text-ink/60 hover:text-ink">
           {t("cancel")}
         </Link>
       </div>
