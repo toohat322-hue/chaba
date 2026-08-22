@@ -15,6 +15,19 @@ type ShabaLoaderProps = {
    * Components alike). Defaults to English since a missing label shouldn't
    * ever break rendering. */
   label?: string;
+  /** Visible text under the logo, without a trailing ellipsis — the three
+   * dots are animated separately (see .shaba-loader-dots). Falls back to
+   * `label` with any trailing dots stripped, so callers that opt into
+   * `showIndicator` don't also need to pass this. */
+  labelBase?: string;
+  /** Adds the visible dot-indicator row and a light shimmer sweep over the
+   * logo — the "this is the main, deliberate loading moment" treatment.
+   * Independent of `full`: ShabaLoaderOverlay renders `full={false}` (its
+   * own `.shaba-loader-overlay` wrapper already provides the fixed
+   * full-viewport chrome) but still wants this richer decoration, while a
+   * small inline loader (account pages, cart drawer, ...) stays icon-only.
+   */
+  showIndicator?: boolean;
   className?: string;
 };
 
@@ -24,16 +37,26 @@ type ShabaLoaderProps = {
 // element exists immediately (no later layout shift) but stays invisible
 // until 150ms in, so a load that resolves faster than that never visibly
 // flashes the loader at all.
-export function ShabaLoader({ full = false, label = "Loading...", className = "" }: ShabaLoaderProps) {
+export function ShabaLoader({
+  full = false,
+  label = "Loading...",
+  labelBase,
+  showIndicator = false,
+  className = "",
+}: ShabaLoaderProps) {
   const logoSize = full ? 96 : 64;
+  // Strips a trailing "..."/"…" from `label` so full-mode callers that
+  // haven't been updated to pass labelBase explicitly still get clean text
+  // next to the separately-animated dots, instead of "Loading...⋯".
+  const visibleLabel = labelBase ?? label.replace(/[.…]+$/, "");
 
   return (
     <div
       role="status"
       aria-live="polite"
-      className={`flex items-center justify-center ${full ? "fixed inset-0 z-50 bg-background" : "min-h-40 w-full py-12"} ${className}`}
+      className={`flex flex-col items-center justify-center gap-4 ${full ? "fixed inset-0 z-50 bg-background" : "min-h-40 w-full py-12"} ${className}`}
     >
-      <div className="relative flex items-center justify-center">
+      <div className="relative flex items-center justify-center" style={{ width: logoSize, height: logoSize }}>
         <span
           aria-hidden="true"
           className="animate-shaba-loader-glow absolute rounded-full bg-accent/40 blur-2xl"
@@ -47,7 +70,29 @@ export function ShabaLoader({ full = false, label = "Loading...", className = ""
           priority={full}
           className="animate-shaba-loader relative"
         />
+        {/* A light diagonal sweep masked to the logo's own silhouette, not a
+            rectangle over it. Purely decorative (aria-hidden) and skipped
+            when reduced-motion applies (see globals.css). */}
+        {showIndicator && (
+          <span
+            aria-hidden="true"
+            className="shaba-loader-shimmer absolute inset-0"
+            style={{ maskImage: "url(/brand/logo.png)", WebkitMaskImage: "url(/brand/logo.png)" }}
+          />
+        )}
       </div>
+
+      {showIndicator && (
+        <p aria-hidden="true" className="flex items-center gap-1.5 text-caption text-ink/50">
+          <span>{visibleLabel}</span>
+          <span className="shaba-loader-dots">
+            <span className="shaba-loader-dot" />
+            <span className="shaba-loader-dot" />
+            <span className="shaba-loader-dot" />
+          </span>
+        </p>
+      )}
+
       <span className="sr-only">{label}</span>
     </div>
   );

@@ -124,7 +124,7 @@ export function ShabaLoaderOverlay() {
 
   return (
     <div className={`shaba-loader-overlay ${visible ? "is-visible" : ""}`} aria-hidden={!visible}>
-      <ShabaLoader label={t("label")} />
+      <ShabaLoader label={t("label")} labelBase={t("labelBase")} showIndicator />
     </div>
   );
 }

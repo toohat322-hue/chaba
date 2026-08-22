@@ -7,7 +7,8 @@
     "title": "CHABA"
   },
   "Loading": {
-    "label": "Chargement..."
+    "label": "Chargement...",
+    "labelBase": "Chargement"
   },
   "Nav": {
     "home": "Accueil",

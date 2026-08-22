@@ -116,7 +116,7 @@ function AuthCallbackContent() {
     );
   }
 
-  return <ShabaLoader full label={t("loading")} />;
+  return <ShabaLoader full showIndicator label={t("loading")} />;
 }
 
 export default function AuthCallbackPage() {
