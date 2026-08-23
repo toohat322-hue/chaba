@@ -1,0 +1,22 @@
+# Root-level .dockerignore — applies when the build context is the repo
+# root (apps/api's Dockerfile needs packages/shared, so its dockerContext
+# in render.yaml/docker-compose.yml is "." not "./apps/api"; apps/web
+# doesn't need this file at all since its own context stays ./apps/web).
+# Keeps the context Docker actually uploads small — none of this is needed
+# to build apps/api's image.
+
+.git
+docs
+
+apps/api/vendor
+apps/api/storage/logs
+apps/api/storage/framework/cache
+apps/api/storage/framework/sessions
+apps/api/storage/framework/views
+apps/api/.env
+apps/api/.phpunit.result.cache
+
+apps/web/node_modules
+apps/web/.next
+apps/web/dev-server.log
+apps/web/.env.local

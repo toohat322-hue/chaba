@@ -1,0 +1,224 @@
+# Render Blueprint — deploys CHABA's two apps + managed Postgres/Redis in one
+# shot. Deploy via Render's dashboard: New -> Blueprint -> pick this repo.
+#
+# What's automatic: DB/Redis wiring between services, migrations + the
+# production-safe seed set on every deploy, HTTPS/proxy trust, CORS between
+# the two apps.
+#
+# What you must fill in yourself after the first deploy (Render will list
+# these as required, unset env vars — nothing insecure is guessed or
+# defaulted here): APP_KEY, R2 (object storage) credentials, and — whenever
+# you're ready for them — an SMS provider, a transactional mail provider,
+# and the first real admin account. See docs/DEPLOYMENT.md for the exact
+# steps and where each value comes from.
+#
+# chaba-queue-worker and chaba-scheduler share apps/api's image but run a
+# different process — their env vars are the same values repeated
+# deliberately (not cross-referenced via a Render env-var group), so a
+# single obviously-correct copy of each is easy to verify by reading this
+# file top to bottom rather than depending on a cross-service reference
+# resolving the way this was written to assume.
+
+databases:
+  - name: chaba-db
+    databaseName: chaba
+    user: chaba
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: "16"
+
+services:
+  # --- Redis (sessions, cache, queue, OTP/rate-limit state) ---
+  - type: redis
+    name: chaba-redis
+    plan: starter
+    region: frankfurt
+    ipAllowList: [] # internal-only — nothing outside this Render account can reach it
+
+  # --- API (Laravel) ---
+  - type: web
+    name: chaba-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /api/v1/health
+    # Runs before the new instance takes traffic, on every deploy. Migrations
+    # are always safe to re-run; db:seed:production (App\Console\Commands\
+    # SeedProduction) wraps ProductionSeeder, whose seeders are all
+    # updateOrCreate/firstOrCreate-based (see each seeder), so re-running
+    # this on every deploy is idempotent, not just on the first one.
+    preDeployCommand: php artisan migrate --force && php artisan db:seed:production
+    envVars: &api-env
+      - key: APP_NAME
+        value: CHABA
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false # generate locally: `php artisan key:generate --show` — paste the base64:... output
+      - key: APP_URL
+        fromService: { type: web, name: chaba-api, property: hostport }
+      - key: APP_TIMEZONE
+        value: Africa/Algiers
+      - key: APP_LOCALE
+        value: ar
+      - key: APP_FALLBACK_LOCALE
+        value: en
+      - key: BCRYPT_ROUNDS
+        value: "12"
+      - key: LOG_CHANNEL
+        value: stack
+      - key: LOG_STACK
+        value: single
+      - key: LOG_LEVEL
+        value: error
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase: { name: chaba-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: chaba-db, property: port }
+      - key: DB_DATABASE
+        fromDatabase: { name: chaba-db, property: database }
+      - key: DB_USERNAME
+        fromDatabase: { name: chaba-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: chaba-db, property: password }
+      - key: SESSION_DRIVER
+        value: redis
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: redis
+      - key: CACHE_PREFIX
+        value: chaba_cache
+      - key: QUEUE_CONNECTION
+        value: redis
+      - key: REDIS_CLIENT
+        value: predis
+      - key: REDIS_HOST
+        fromService: { type: redis, name: chaba-redis, property: host }
+      - key: REDIS_PORT
+        fromService: { type: redis, name: chaba-redis, property: port }
+      - key: FRONTEND_URL
+        fromService: { type: web, name: chaba-web, property: hostport }
+      - key: FILESYSTEM_DISK
+        value: s3
+      # Cloudflare R2 (S3-compatible) — create the bucket + an API token
+      # (R2 -> Manage API Tokens -> "Object Read & Write") in the Cloudflare
+      # dashboard first; see docs/DEPLOYMENT.md for exact steps.
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_DEFAULT_REGION
+        value: auto
+      - key: AWS_BUCKET
+        sync: false # e.g. chaba-products
+      - key: AWS_ENDPOINT
+        sync: false # https://<account_id>.r2.cloudflarestorage.com
+      - key: AWS_USE_PATH_STYLE_ENDPOINT
+        value: "true"
+      # NEXT_PUBLIC_ASSET_URL on chaba-web must be R2's *public* bucket URL
+      # (R2 -> bucket -> Settings -> Public access) — set there, not here.
+      - key: SMS_DRIVER
+        value: log # switch to `twilio` once a real account exists (logs OTPs only until then, nothing is texted)
+      - key: SMS_DEV_INBOX
+        value: otp-dev@chaba.dz
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: MAIL_MAILER
+        value: log # switch once a real transactional-mail provider (Postmark/SES/Resend/...) is chosen
+      - key: MAIL_FROM_ADDRESS
+        value: no-reply@chaba.dz
+      - key: MAIL_FROM_NAME
+        value: CHABA
+      - key: CIB_ENABLED
+        value: "false"
+      - key: EDAHABIA_ENABLED
+        value: "false"
+      - key: GOOGLE_ENABLED
+        value: "false"
+      - key: FACEBOOK_ENABLED
+        value: "false"
+      - key: APPLE_ENABLED
+        value: "false"
+      # Leave both blank to skip seeding an admin — recommended. If you do
+      # set them, they're only used by AdminUserSeeder (idempotent, matches
+      # by phone) and never displayed anywhere after.
+      - key: ADMIN_SEED_PHONE
+        sync: false
+      - key: ADMIN_SEED_PASSWORD
+        sync: false
+      - key: SENTRY_LARAVEL_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      - key: BACKUP_DISKS
+        value: s3 # not "local" — this container's disk is ephemeral, a local-only backup can vanish on the next deploy
+
+  # --- Queue worker (same image as chaba-api, different process — see the
+  # note at the top of this file about why its env vars are a literal copy) ---
+  - type: worker
+    name: chaba-queue-worker
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    dockerCommand: php artisan queue:work redis --tries=3 --timeout=90 --sleep=3
+    plan: starter
+    region: frankfurt
+    envVars: *api-env
+
+  # --- Scheduler (routes/console.php: hourly abandoned-cart reminders, daily
+  # backups — same image as chaba-api, different process) ---
+  - type: cron
+    name: chaba-scheduler
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    dockerCommand: php artisan schedule:run
+    schedule: "* * * * *"
+    plan: starter
+    region: frankfurt
+    envVars: *api-env
+
+  # --- Web (Next.js storefront + adminportal) ---
+  - type: web
+    name: chaba-web
+    runtime: docker
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: ./apps/web
+    plan: starter
+    region: frankfurt
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        # chaba-api's URL + /api/v1 — Render can't append a path suffix to a
+        # fromService reference, so this needs one manual paste after the
+        # first deploy once chaba-api's assigned *.onrender.com URL is known
+        # (or your custom API domain, if you set one).
+        sync: false
+      - key: NEXT_PUBLIC_ASSET_URL
+        sync: false # R2 bucket's public URL (R2 -> bucket -> Settings -> Public access)
+      - key: NEXT_PUBLIC_SITE_URL
+        fromService: { type: web, name: chaba-web, property: hostport }
+      - key: NEXT_PUBLIC_WHATSAPP_NUMBER
+        sync: false
+      - key: NEXT_PUBLIC_SENTRY_DSN
+        sync: false
+      - key: NEXT_PUBLIC_SENTRY_ENVIRONMENT
+        value: production
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      - key: NEXT_PUBLIC_GSC_VERIFICATION
+        sync: false
+      - key: NEXT_PUBLIC_GA_MEASUREMENT_ID
+        sync: false

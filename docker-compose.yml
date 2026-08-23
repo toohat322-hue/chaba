@@ -63,7 +63,13 @@ services:
       - "8025:8025" # Web UI
 
   api:
-    build: ./apps/api
+    build:
+      # Root context (not ./apps/api) — WilayaSeeder/CommuneSeeder read
+      # packages/shared/locations/*.json via a base_path('../../...') path
+      # outside apps/api, which an apps/api-scoped build context can't see
+      # at all. See the Dockerfile's own comment on WORKDIR /apps/api.
+      context: .
+      dockerfile: apps/api/Dockerfile
     env_file: ./apps/api/.env
     environment:
       DB_HOST: postgres
@@ -73,8 +79,9 @@ services:
       AWS_ENDPOINT: http://minio:9000
       FRONTEND_URL: http://localhost:3000
     volumes:
-      - ./apps/api:/app
-      - api_vendor:/app/vendor
+      - ./apps/api:/apps/api
+      - ./packages/shared:/packages/shared
+      - api_vendor:/apps/api/vendor
     ports:
       - "8000:8000"
     depends_on:

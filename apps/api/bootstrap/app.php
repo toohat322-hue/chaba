@@ -33,6 +33,18 @@ return Application::configure(basePath: dirname(__DIR__))
         // `Accept: application/json` header.
         $middleware->redirectGuestsTo(fn () => null);
 
+        // The container only ever receives traffic from the host platform's
+        // own reverse proxy (Render, or docker-compose's port mapping
+        // locally) — trusting it is what makes $request->secure(), the
+        // url()/route() helpers, and generated https:// links correct
+        // behind TLS termination that happens upstream of this process.
+        // Without this, Laravel sees a plain-HTTP request even when the
+        // real client connected over HTTPS.
+        $middleware->trustProxies(at: '*', headers: Request::HEADER_X_FORWARDED_FOR
+            | Request::HEADER_X_FORWARDED_HOST
+            | Request::HEADER_X_FORWARDED_PORT
+            | Request::HEADER_X_FORWARDED_PROTO);
+
         $middleware->alias([
             'permission' => EnsurePermission::class,
             'staff' => EnsureIsStaff::class,
