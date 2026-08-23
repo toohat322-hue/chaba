@@ -44,12 +44,15 @@ services:
     plan: starter
     region: frankfurt
     healthCheckPath: /api/v1/health
-    # Runs before the new instance takes traffic, on every deploy. Migrations
-    # are always safe to re-run; db:seed:production (App\Console\Commands\
-    # SeedProduction) wraps ProductionSeeder, whose seeders are all
-    # updateOrCreate/firstOrCreate-based (see each seeder), so re-running
-    # this on every deploy is idempotent, not just on the first one.
-    preDeployCommand: php artisan migrate --force && php artisan db:seed:production
+    # Runs before the new instance takes traffic, on every deploy. A single
+    # command, not "migrate && seed" — Render's Docker runtime does not run
+    # this string through a shell that understands "&&" (confirmed against
+    # a real deploy: it passed "&&" as a literal argument to the migrate
+    # command and failed). deploy:prepare (App\Console\Commands\
+    # PrepareDeploy) does both steps internally instead. Always safe to
+    # re-run: migrations are idempotent by nature, and ProductionSeeder's
+    # seeders are all updateOrCreate/firstOrCreate-based (see each seeder).
+    preDeployCommand: php artisan deploy:prepare
     envVars: &api-env
       - key: APP_NAME
         value: CHABA
