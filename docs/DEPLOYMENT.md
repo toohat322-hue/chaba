@@ -33,9 +33,18 @@ And on `chaba-web`:
 |---|---|
 | `NEXT_PUBLIC_ASSET_URL` | the bucket's public URL from step 2 |
 
-**Cross-service URLs** (Render can't auto-fill a path suffix onto another service's URL):
-- `chaba-web`'s `NEXT_PUBLIC_API_URL` → `chaba-api`'s Render URL + `/api/v1` (e.g. `https://chaba-api.onrender.com/api/v1`). Look up `chaba-api`'s actual URL in its dashboard page first.
-- This is the one env var that needs a **manual redeploy of `chaba-web`** after setting it — build-time `NEXT_PUBLIC_*` vars are baked into the JS bundle, so just saving the value isn't enough on its own.
+**Each service's own public URL** — Render's `fromService`/`property: hostport` (what the blueprint originally tried) resolves to Render's *internal* service-to-service address (e.g. `chaba-api:10000`), not the public `https://` URL — confirmed against a real deploy, where it silently broke CORS by advertising that internal address as the allowed origin instead of the real one. Look up each service's actual URL on its own dashboard page (top of the page, e.g. `https://chaba-api.onrender.com`), then set:
+
+| Service | Env var | Value |
+|---|---|---|
+| `chaba-api` | `APP_URL` | its own URL, e.g. `https://chaba-api.onrender.com` |
+| `chaba-api` + `chaba-queue-worker` + `chaba-scheduler` | `FRONTEND_URL` | `chaba-web`'s URL, e.g. `https://chaba-web.onrender.com` — **this is also what CORS checks the browser's Origin header against**, so getting it wrong doesn't just mishandle a few links, it breaks every request the site makes to the API |
+| `chaba-web` | `NEXT_PUBLIC_SITE_URL` | its own URL, e.g. `https://chaba-web.onrender.com` |
+| `chaba-web` | `NEXT_PUBLIC_API_URL` | `chaba-api`'s URL + `/api/v1`, e.g. `https://chaba-api.onrender.com/api/v1` (Render can't auto-append a path suffix onto another service's URL, so this one's always manual regardless) |
+
+`NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_API_URL` are both **build-time** vars — after setting them, `chaba-web` needs a **manual redeploy** (Manual Deploy → Deploy latest commit) to actually pick them up; just saving the value in the dashboard isn't enough on its own, since they're baked into the JS bundle at build time, not read at container start.
+
+If you've already deployed once with the old blueprint and are seeing CORS errors or a "server error" on page load with everything else looking fine: this is almost certainly it — go set `FRONTEND_URL` on `chaba-api` right now rather than waiting for a Blueprint re-sync to fix it.
 
 ## 3. Recommended before telling real customers about the site
 

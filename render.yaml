@@ -2,15 +2,20 @@
 # shot. Deploy via Render's dashboard: New -> Blueprint -> pick this repo.
 #
 # What's automatic: DB/Redis wiring between services, migrations + the
-# production-safe seed set on every deploy, HTTPS/proxy trust, CORS between
-# the two apps.
+# production-safe seed set on every deploy, HTTPS/proxy trust.
 #
 # What you must fill in yourself after the first deploy (Render will list
 # these as required, unset env vars — nothing insecure is guessed or
-# defaulted here): APP_KEY, R2 (object storage) credentials, and — whenever
-# you're ready for them — an SMS provider, a transactional mail provider,
-# and the first real admin account. See docs/DEPLOYMENT.md for the exact
-# steps and where each value comes from.
+# defaulted here): APP_KEY, R2 (object storage) credentials, each service's
+# own public URL (APP_URL / FRONTEND_URL / NEXT_PUBLIC_API_URL /
+# NEXT_PUBLIC_SITE_URL — Render's fromService can't supply these; see the
+# comment on APP_URL below for why), and — whenever you're ready for them —
+# an SMS provider, a transactional mail provider, and the first real admin
+# account. See docs/DEPLOYMENT.md for the exact steps and where each value
+# comes from. Getting FRONTEND_URL right matters more than it looks: it's
+# also what CORS checks the browser's Origin header against, so a wrong
+# value here doesn't just mishandle a few links — it breaks every request
+# chaba-web makes to chaba-api.
 #
 # chaba-queue-worker and chaba-scheduler share apps/api's image but run a
 # different process — their env vars are the same values repeated
@@ -63,7 +68,14 @@ services:
       - key: APP_KEY
         sync: false # generate locally: `php artisan key:generate --show` — paste the base64:... output
       - key: APP_URL
-        fromService: { type: web, name: chaba-api, property: hostport }
+        # Not fromService/property: hostport — that resolves to Render's
+        # *internal* service-to-service address (e.g. "chaba-api:10000"),
+        # not the public https:// URL, confirmed against a real deploy (it
+        # broke CORS by advertising that internal address as the allowed
+        # origin instead of the real one). Paste chaba-api's own public URL
+        # from its dashboard page, e.g. https://chaba-api.onrender.com —
+        # or your custom domain, if you've set one.
+        sync: false
       - key: APP_TIMEZONE
         value: Africa/Algiers
       - key: APP_LOCALE
@@ -107,7 +119,11 @@ services:
       - key: REDIS_PORT
         fromService: { type: redis, name: chaba-redis, property: port }
       - key: FRONTEND_URL
-        fromService: { type: web, name: chaba-web, property: hostport }
+        # Same fromService/hostport problem as APP_URL above — paste
+        # chaba-web's own public URL, e.g. https://chaba-web.onrender.com.
+        # This is also what CORS checks the browser's Origin header
+        # against, so getting it right matters more than APP_URL does.
+        sync: false
       - key: FILESYSTEM_DISK
         value: s3
       # Cloudflare R2 (S3-compatible) — create the bucket + an API token
@@ -210,7 +226,11 @@ services:
       - key: NEXT_PUBLIC_ASSET_URL
         sync: false # R2 bucket's public URL (R2 -> bucket -> Settings -> Public access)
       - key: NEXT_PUBLIC_SITE_URL
-        fromService: { type: web, name: chaba-web, property: hostport }
+        # Same fromService/hostport problem as chaba-api's APP_URL — paste
+        # this service's own public URL, e.g. https://chaba-web.onrender.com.
+        # A build-time var (see NEXT_PUBLIC_API_URL above) — changing this
+        # needs a redeploy of chaba-web to take effect, same as that one.
+        sync: false
       - key: NEXT_PUBLIC_WHATSAPP_NUMBER
         sync: false
       - key: NEXT_PUBLIC_SENTRY_DSN
