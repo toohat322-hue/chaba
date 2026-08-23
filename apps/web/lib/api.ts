@@ -8,7 +8,9 @@ import { getSessionToken } from "./cart-session";
 import { getAdminTokens, setAdminTokens, clearAdminTokens } from "./admin-session";
 import { getCustomerTokens, setCustomerTokens, clearCustomerTokens } from "./customer-session";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+// `||` not `??` — see next.config.ts's apiOrigin for why an empty string
+// (not just an unset var) needs to be caught here too.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 type ApiEnvelope<T> =
   | { success: true; data: T; error: null }

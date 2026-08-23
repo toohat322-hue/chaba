@@ -4,9 +4,14 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 // Origin the browser needs to call directly (fetch/XHR) — the Laravel API.
-// Falls back to the dev default so a missing env var doesn't silently strip
-// the app's own backend from connect-src.
-const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").origin;
+// Falls back to the dev default so a missing *or empty* env var doesn't
+// crash the build — `??` alone doesn't catch "" (an unset Docker ARG with
+// no default resolves to an empty string, not undefined, when interpolated
+// into ENV; ?? only falls back on null/undefined), which previously threw
+// `TypeError: Invalid URL` and failed the entire production build outright
+// whenever this var hadn't been set yet — exactly the state a fresh deploy
+// is in before its cross-service URL is filled in (see docs/DEPLOYMENT.md).
+const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").origin;
 
 // Product/hero-slide images are uploaded to a separate S3/MinIO origin
 // (apps/api's AWS_ENDPOINT), not served from the API origin itself — img-src

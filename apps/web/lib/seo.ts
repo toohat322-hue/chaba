@@ -3,7 +3,10 @@ import { routing } from "@/i18n/routing";
 import type { Crumb } from "@/components/layout/Breadcrumbs";
 import type { FooterData, ProductDetail } from "./api";
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+// `||` not `??` — an unset build-time env var can arrive as an empty string
+// rather than undefined (see next.config.ts's apiOrigin for the full
+// explanation), which `??` doesn't fall back on.
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
 
 /**
  * Absolute canonical URL for one locale of a locale-agnostic path (same
