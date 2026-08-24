@@ -9,7 +9,10 @@ const MAX_DIMENSION = 2000;
 const MIN_DIMENSION = 800;
 const TARGET_BYTES = 4.5 * 1024 * 1024;
 const SKIP_THRESHOLD_BYTES = 800 * 1024;
-const JPEG_QUALITIES = [0.88, 0.75, 0.6, 0.45];
+// Starts near-lossless (0.95) and only backs off if the 4.5MB cap forces it —
+// product photos with fine detail (glass, reflections) showed visible
+// softening at the old first rung (0.88).
+const JPEG_QUALITIES = [0.95, 0.9, 0.8, 0.65];
 
 async function tryCompress(bitmap: ImageBitmap, outputType: string, dimension: number): Promise<Blob | null> {
   const scale = dimension / Math.max(bitmap.width, bitmap.height);
