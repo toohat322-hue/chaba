@@ -89,7 +89,10 @@
     "unavailable": "غير متوفر",
     "addSize": "إضافة",
     "totalQuantityLabel": "{count} قطعة",
-    "addToCartWithCount": "أضف إلى السلة ({count})"
+    "addToCartWithCount": "أضف إلى السلة ({count})",
+    "prevImage": "الصورة السابقة",
+    "nextImage": "الصورة التالية",
+    "goToImage": "الانتقال إلى الصورة {number}"
   },
   "Category": {
     "sortBy": "ترتيب حسب",

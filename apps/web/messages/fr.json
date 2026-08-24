@@ -89,7 +89,10 @@
     "unavailable": "Indisponible",
     "addSize": "Ajouter",
     "totalQuantityLabel": "{count} article(s)",
-    "addToCartWithCount": "Ajouter au panier ({count})"
+    "addToCartWithCount": "Ajouter au panier ({count})",
+    "prevImage": "Image précédente",
+    "nextImage": "Image suivante",
+    "goToImage": "Aller à l'image {number}"
   },
   "Category": {
     "sortBy": "Trier par",

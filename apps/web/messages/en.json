@@ -89,7 +89,10 @@
     "unavailable": "Unavailable",
     "addSize": "Add",
     "totalQuantityLabel": "{count} item(s)",
-    "addToCartWithCount": "Add to Cart ({count})"
+    "addToCartWithCount": "Add to Cart ({count})",
+    "prevImage": "Previous image",
+    "nextImage": "Next image",
+    "goToImage": "Go to image {number}"
   },
   "Category": {
     "sortBy": "Sort by",

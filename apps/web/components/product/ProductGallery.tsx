@@ -1,24 +1,86 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useLocale, useTranslations } from "next-intl";
+import { rtlLocales } from "@/i18n/routing";
 import { PerfumeGlyph } from "./PerfumeGlyph";
 
 type GalleryImage = { url: string; alt_text: string | null };
+type Locale = "ar" | "fr" | "en";
 
 const AUTOPLAY_MS = 5000;
+const SWIPE_THRESHOLD_PX = 50;
+
+function ChevronLeft({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ChevronRight({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export function ProductGallery({ images, title }: { images: GalleryImage[]; title: string }) {
+  const t = useTranslations("Product");
+  const locale = useLocale() as Locale;
+  const isRtl = rtlLocales.has(locale);
+
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
+  // Per-image, not gallery-wide — one bad URL falls back to the placeholder
+  // glyph for just that slide; the other real photos and the dots/arrows
+  // keep working normally.
+  const [failedIndexes, setFailedIndexes] = useState<ReadonlySet<number>>(new Set());
+  const touchStartX = useRef<number | null>(null);
 
   const count = images.length;
+
+  const goTo = useCallback((index: number) => setActiveIndex(((index % count) + count) % count), [count]);
+  const next = useCallback(() => goTo(activeIndex + 1), [activeIndex, goTo]);
+  const prev = useCallback(() => goTo(activeIndex - 1), [activeIndex, goTo]);
 
   useEffect(() => {
     if (isHovering || count <= 1) return;
     const timer = setInterval(() => setActiveIndex((i) => (i + 1) % count), AUTOPLAY_MS);
     return () => clearInterval(timer);
   }, [isHovering, count]);
+
+  function handleTouchStart(event: React.TouchEvent) {
+    touchStartX.current = event.touches[0].clientX;
+  }
+
+  function handleTouchEnd(event: React.TouchEvent) {
+    if (touchStartX.current === null) return;
+    const deltaX = event.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return;
+
+    // A right-to-left drag (deltaX < 0) advances forward in LTR reading
+    // order but goes backward in RTL — swipe direction is mirrored, not
+    // just the arrow icons (same logic as HeroSlider).
+    const draggedLeft = deltaX < 0;
+    if (draggedLeft === !isRtl) next();
+    else prev();
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent) {
+    if (count <= 1) return;
+    if (event.key === "ArrowLeft") {
+      if (isRtl) next();
+      else prev();
+    } else if (event.key === "ArrowRight") {
+      if (isRtl) prev();
+      else next();
+    }
+  }
 
   if (count === 0) {
     return (
@@ -29,24 +91,30 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div
-        data-testid="gallery-main-image"
-        className="relative aspect-square overflow-hidden rounded-2xl bg-white shadow-soft"
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-      >
-        {/* All images mount at once and cross-fade via opacity (not swapped
-            in/out per activeIndex) so autoplay never shows a fresh network
-            fetch/pop-in — matches the Hero Slider's established pattern. */}
-        {images.map((image, i) => (
-          <div
-            key={image.url}
-            aria-hidden={i !== activeIndex}
-            className={`absolute inset-0 transition-opacity duration-700 ease-out ${
-              i === activeIndex ? "z-10 opacity-100" : "pointer-events-none z-0 opacity-0"
-            }`}
-          >
+    <div
+      data-testid="gallery-main-image"
+      tabIndex={count > 1 ? 0 : -1}
+      className="relative aspect-square overflow-hidden rounded-2xl bg-white shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onKeyDown={handleKeyDown}
+    >
+      {/* All images mount at once and cross-fade via opacity (not swapped
+          in/out per activeIndex) so autoplay never shows a fresh network
+          fetch/pop-in — matches the Hero Slider's established pattern. */}
+      {images.map((image, i) => (
+        <div
+          key={image.url}
+          aria-hidden={i !== activeIndex}
+          className={`absolute inset-0 transition-opacity duration-700 ease-out ${
+            i === activeIndex ? "z-10 opacity-100" : "pointer-events-none z-0 opacity-0"
+          }`}
+        >
+          {failedIndexes.has(i) ? (
+            <PerfumeGlyph className="h-full w-full" />
+          ) : (
             <Image
               src={image.url}
               alt={image.alt_text ?? title}
@@ -54,28 +122,46 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
               sizes="(min-width: 768px) 50vw, 100vw"
               priority={i === 0}
               className="object-cover"
+              onError={() => setFailedIndexes((prev) => new Set(prev).add(i))}
             />
-          </div>
-        ))}
-      </div>
-      {count > 1 && (
-        <div className="flex gap-3 overflow-x-auto pb-1">
-          {images.map((image, i) => (
-            <button
-              key={image.url}
-              type="button"
-              onClick={() => setActiveIndex(i)}
-              aria-label={`${title} ${i + 1}`}
-              aria-current={i === activeIndex}
-              className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
-                i === activeIndex ? "border-accent" : "border-transparent hover:border-primary/20"
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- tiny 80px thumbnail, next/image's overhead isn't worth it here */}
-              <img src={image.url} alt={image.alt_text ?? title} className="h-full w-full object-cover" />
-            </button>
-          ))}
+          )}
         </div>
+      ))}
+
+      {count > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={prev}
+            aria-label={t("prevImage")}
+            className="absolute inset-y-0 start-2 z-20 my-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/85 text-ink shadow-soft backdrop-blur transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
+            {isRtl ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+          </button>
+          <button
+            type="button"
+            onClick={next}
+            aria-label={t("nextImage")}
+            className="absolute inset-y-0 end-2 z-20 my-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/85 text-ink shadow-soft backdrop-blur transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
+            {isRtl ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </button>
+
+          <div className="absolute bottom-3 start-1/2 z-20 flex -translate-x-1/2 gap-2">
+            {images.map((image, i) => (
+              <button
+                key={image.url}
+                type="button"
+                onClick={() => goTo(i)}
+                aria-label={t("goToImage", { number: i + 1 })}
+                aria-current={i === activeIndex}
+                className={`h-2 w-2 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                  i === activeIndex ? "border-accent bg-accent" : "border-ink/30 bg-white/70 hover:border-ink/50"
+                }`}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
