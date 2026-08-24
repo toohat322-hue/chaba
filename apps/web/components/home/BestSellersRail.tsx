@@ -37,7 +37,7 @@ export async function BestSellersRail() {
           </h2>
           <p className="mt-2 text-body text-ink/70">{t("subheading")}</p>
         </div>
-        <Link href="/category/exclusive-offers" className="text-body font-medium text-primary hover:text-accent">
+        <Link href="/search" className="text-body font-medium text-primary hover:text-accent">
           {t("viewAll")}
         </Link>
       </div>

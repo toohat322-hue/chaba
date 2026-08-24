@@ -69,7 +69,7 @@ export async function HeroBanner() {
 
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
           <Link
-            href="/category/exclusive-offers"
+            href="/search"
             className="inline-flex h-12 items-center justify-center rounded-md border border-primary/15 bg-accent px-7 text-body font-medium text-primary shadow-soft transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/70 focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
           >
             {tHero("primaryCta")}
