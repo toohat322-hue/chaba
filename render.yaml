@@ -163,8 +163,21 @@ services:
         value: "false"
       - key: EDAHABIA_ENABLED
         value: "false"
+      # Off by default (docs/social-login-setup.md has the full walkthrough)
+      # — flip to "true" from the dashboard only once real Google Cloud
+      # OAuth credentials are set below; a stray "true" with no client
+      # id/secret would just make every login attempt fail at Google's end
+      # instead of failing fast here.
       - key: GOOGLE_ENABLED
-        value: "false"
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # Not a secret — this is the exact URI to register as an Authorized
+      # redirect URI in Google Cloud Console (see docs/social-login-setup.md).
+      - key: GOOGLE_REDIRECT_URI
+        value: https://chaba-api.onrender.com/api/v1/auth/google/callback
       - key: FACEBOOK_ENABLED
         value: "false"
       - key: APPLE_ENABLED
