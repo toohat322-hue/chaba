@@ -86,8 +86,12 @@ services:
         value: "12"
       - key: LOG_CHANNEL
         value: stack
+      # "single" writes to a file inside the container's own ephemeral
+      # filesystem — invisible to Render's Logs tab, which only captures
+      # stdout/stderr. Found this while chasing a live 500 with no visible
+      # trace anywhere. "stderr" is what actually surfaces there.
       - key: LOG_STACK
-        value: single
+        value: stderr
       - key: LOG_LEVEL
         value: error
       - key: DB_CONNECTION
