@@ -13,11 +13,32 @@ use Illuminate\Database\Seeder;
 // Footer CMS default content — seeds real, non-fake starting data so the
 // storefront footer looks identical to before this feature existed, and an
 // admin edits from here rather than starting from an empty footer.
+//
+// Every section below is seed-once, not seed-always: this runs on *every*
+// deploy (ProductionSeeder is `deploy:prepare`'s preDeployCommand), so
+// unconditionally delete()-then-recreate()ing here would silently wipe out
+// every real edit an admin has made — social links, the about text, payment
+// toggles, all of it — back to these defaults on the next deploy. Each
+// section is independently gated on "does this already have anything in
+// it", since an admin may have customized only some of them.
 class FooterContentSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->seedStoreSettings();
+        $this->seedFeatures();
+        $this->seedColumns();
+        $this->seedPaymentMethods();
+        $this->seedSocialLinks();
+    }
+
+    private function seedStoreSettings(): void
+    {
         $settings = StoreSetting::current();
+        if ($settings->about_title_ar !== null) {
+            return;
+        }
+
         $settings->update([
             'about_title_ar' => 'من نحن',
             'about_title_fr' => 'À propos',
@@ -33,12 +54,18 @@ class FooterContentSeeder extends Seeder
             'whatsapp_message_en' => "Hi, I'd like to ask about CHABA products",
             'whatsapp_active' => true,
         ]);
+    }
+
+    private function seedFeatures(): void
+    {
+        if (FooterFeature::count() > 0) {
+            return;
+        }
 
         // These 4 are the storefront's canonical trust messages — "authentic"
         // and "delivery" used to also live in components/home/TrustBar.tsx
         // (home-page only); removed from there when these were added here so
         // the same phrase doesn't appear twice on the home page.
-        FooterFeature::query()->delete();
         FooterFeature::create([
             'icon' => 'shield', 'title_ar' => 'الدفع عند الاستلام متاح', 'title_fr' => 'Paiement à la livraison disponible',
             'title_en' => 'Cash on delivery available',
@@ -63,8 +90,13 @@ class FooterContentSeeder extends Seeder
             'description_ar' => 'تغطية كاملة عبر 58 ولاية', 'description_fr' => 'Couverture complète des 58 wilayas',
             'description_en' => 'Full coverage across all 58 wilayas', 'sort_order' => 4,
         ]);
+    }
 
-        FooterColumn::query()->delete();
+    private function seedColumns(): void
+    {
+        if (FooterColumn::count() > 0) {
+            return;
+        }
 
         // Built from whatever real categories already exist (never a fixed
         // demo slug list) — in local dev CategorySeeder has already run by
@@ -72,7 +104,11 @@ class FooterContentSeeder extends Seeder
         // ProductionSeeder deliberately never runs CategorySeeder, there's
         // nothing to link to yet, so the column is skipped rather than
         // shipping dead links an admin would otherwise have to notice and
-        // fix by hand — the same reasoning as SiteHeader's nav.
+        // fix by hand — the same reasoning as SiteHeader's nav. Since this
+        // whole method is seed-once, a store that starts with zero
+        // categories never gets this column auto-added later either — the
+        // admin adds it themselves from the footer editor once there's
+        // something real to link to.
         $topCategories = Category::where('is_active', true)->whereNull('parent_id')->orderBy('sort_order')->limit(4)->get();
         if ($topCategories->isNotEmpty()) {
             $browse = FooterColumn::create(['title_ar' => 'تصفح', 'title_fr' => 'Parcourir', 'title_en' => 'Browse', 'sort_order' => 1]);
@@ -104,8 +140,14 @@ class FooterContentSeeder extends Seeder
         foreach ($infoLinks as $i => [$ar, $fr, $en, $url]) {
             $info->links()->create(['label_ar' => $ar, 'label_fr' => $fr, 'label_en' => $en, 'url' => $url, 'sort_order' => $i]);
         }
+    }
 
-        FooterPaymentMethod::query()->delete();
+    private function seedPaymentMethods(): void
+    {
+        if (FooterPaymentMethod::count() > 0) {
+            return;
+        }
+
         FooterPaymentMethod::create([
             'name_ar' => 'الدفع عند الاستلام', 'name_fr' => 'Paiement à la livraison', 'name_en' => 'Cash on Delivery',
             'icon' => 'cod', 'is_active' => true, 'sort_order' => 1,
@@ -139,13 +181,19 @@ class FooterContentSeeder extends Seeder
             'name_ar' => 'مدى', 'name_fr' => 'mada', 'name_en' => 'mada',
             'icon' => 'mada', 'is_active' => false, 'sort_order' => 7,
         ]);
+    }
+
+    private function seedSocialLinks(): void
+    {
+        if (FooterSocialLink::count() > 0) {
+            return;
+        }
 
         // Placeholder handles (not verified real accounts) so the "Follow us"
         // column is visible immediately — active on purpose per explicit
         // request, unlike the payment methods above. Replace each `url`
         // with the real handle from /admin/footer/social-links; nothing
         // else needs to change since these are already active.
-        FooterSocialLink::query()->delete();
         $socialLinks = [
             ['tiktok', 'https://tiktok.com/@chaba'],
             ['snapchat', 'https://snapchat.com/add/chaba'],
