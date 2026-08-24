@@ -169,10 +169,14 @@ services:
         value: "false"
       - key: APPLE_ENABLED
         value: "false"
-      # Leave both blank to skip seeding an admin — recommended. If you do
-      # set them, they're only used by AdminUserSeeder (idempotent, matches
-      # by phone) and never displayed anywhere after.
+      # Leave all three blank to skip seeding an admin — recommended. If you
+      # do set them, they're only used by AdminUserSeeder (idempotent,
+      # matches by phone) and never displayed anywhere after. EMAIL is
+      # optional — phone is still the required identity, EMAIL just lets the
+      # same admin log in with either.
       - key: ADMIN_SEED_PHONE
+        sync: false
+      - key: ADMIN_SEED_EMAIL
         sync: false
       - key: ADMIN_SEED_PASSWORD
         sync: false

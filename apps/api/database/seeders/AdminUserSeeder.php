@@ -16,6 +16,11 @@ class AdminUserSeeder extends Seeder
     {
         $rawPhone = env('ADMIN_SEED_PHONE');
         $password = env('ADMIN_SEED_PASSWORD');
+        // Optional — phone stays the required identity (LoginController falls
+        // back to an email lookup only when the login value doesn't parse as
+        // an Algerian phone), this just lets the same admin sign in with
+        // either one.
+        $email = env('ADMIN_SEED_EMAIL');
 
         if (! $rawPhone || ! $password) {
             $this->command?->warn('ADMIN_SEED_PHONE / ADMIN_SEED_PASSWORD are not set; skipping AdminUserSeeder.');
@@ -37,11 +42,13 @@ class AdminUserSeeder extends Seeder
             ['phone' => $phone],
             [
                 'full_name' => 'CHABA Admin',
+                'email' => $email ?: null,
                 'password_hash' => Hash::make($password),
                 'role_id' => $roleId,
                 'preferred_language' => 'ar',
                 'is_guest' => false,
                 'phone_verified_at' => now(),
+                'email_verified_at' => $email ? now() : null,
                 'status' => 'active',
                 'updated_at' => now(),
                 'created_at' => now(),
