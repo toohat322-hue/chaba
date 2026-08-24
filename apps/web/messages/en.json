@@ -422,6 +422,7 @@
     "heroSlideCtaEn": "Button text (English)",
     "heroSlideDesktopImage": "Desktop image",
     "heroSlideMobileImage": "Mobile image (optional)",
+    "heroSlideImageAfterSave": "Save the slide first — the image upload will appear right here once it exists.",
     "noImage": "No image",
     "heroSlidePreviewTitle": "Preview",
     "heroSlidePreviewDesktop": "Desktop",

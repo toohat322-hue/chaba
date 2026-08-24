@@ -145,7 +145,7 @@ export function HeroSlideForm({
           <input value={ctaEn} onChange={(event) => setCtaEn(event.target.value)} className={inputClass} />
         </label>
 
-        {initial && (
+        {initial ? (
           <div className="col-span-full grid gap-3 border-t border-primary/10 pt-3 sm:grid-cols-2">
             <HeroSlideImageUpload
               slideId={initial.id}
@@ -160,6 +160,15 @@ export function HeroSlideForm({
               onUploaded={(slide) => onImageUploaded?.(slide)}
             />
           </div>
+        ) : (
+          // Uploading needs a real slide id (HeroSlideImageUpload posts to
+          // /admin/hero-slides/{id}/image), which doesn't exist until this
+          // form is submitted once — without this note, a first-time admin
+          // has no way to tell "image upload isn't here yet" apart from
+          // "image upload is missing/broken".
+          <p className="col-span-full border-t border-primary/10 pt-3 text-small text-ink/60">
+            {t("heroSlideImageAfterSave")}
+          </p>
         )}
 
         {error && <p className="col-span-full text-small text-error">{error}</p>}

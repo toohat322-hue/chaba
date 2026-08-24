@@ -422,6 +422,7 @@
     "heroSlideCtaEn": "Texte du bouton (anglais)",
     "heroSlideDesktopImage": "Image bureau",
     "heroSlideMobileImage": "Image mobile (optionnel)",
+    "heroSlideImageAfterSave": "Enregistrez d'abord la diapositive — l'espace pour ajouter des images apparaîtra ici juste après.",
     "noImage": "Aucune image",
     "heroSlidePreviewTitle": "Aperçu",
     "heroSlidePreviewDesktop": "Bureau",
