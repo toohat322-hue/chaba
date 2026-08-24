@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import type { Category } from "@/lib/api";
 import { AccountLink } from "./AccountLink";
 import { CartBadge } from "./CartBadge";
 import { WishlistBadge } from "./WishlistBadge";
@@ -43,24 +44,34 @@ function CartIcon() {
   );
 }
 
+type Locale = "ar" | "fr" | "en";
+
 const focusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-primary";
 
-export function SiteHeader() {
+export function SiteHeader({ categories }: { categories: Category[] }) {
   const tHome = useTranslations("Home");
   const tNav = useTranslations("Nav");
+  const locale = useLocale() as Locale;
   const { open: openCartDrawer } = useCartDrawer();
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
   const lastYRef = useRef(0);
 
+  // The real, active catalog — not a hardcoded slug list. A hardcoded list
+  // here (as this used to be: saudi-perfumes/turkish-perfumes/oud-oil/
+  // exclusive-offers) 404s every single nav link the moment those exact
+  // categories don't exist, e.g. any deploy before an admin has created
+  // them — DiscoverCategories on the homepage already gets this right for
+  // the same reason.
   const navItems = [
     { key: "home", label: tNav("home"), href: "/" },
-    { key: "saudiPerfumes", label: tNav("saudiPerfumes"), href: "/category/saudi-perfumes" },
-    { key: "turkishPerfumes", label: tNav("turkishPerfumes"), href: "/category/turkish-perfumes" },
-    { key: "oudOil", label: tNav("oudOil"), href: "/category/oud-oil" },
-    { key: "exclusiveOffers", label: tNav("exclusiveOffers"), href: "/category/exclusive-offers" },
+    ...categories.map((category) => ({
+      key: category.id,
+      label: category.name[locale],
+      href: `/category/${category.slug}`,
+    })),
   ];
 
   // "Smart" sticky header: recedes on scroll-down past the fold, reappears

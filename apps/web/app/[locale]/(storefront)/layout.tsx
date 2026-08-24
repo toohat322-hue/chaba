@@ -11,7 +11,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
 import { ShabaLoaderOverlay } from "@/components/ui/ShabaLoaderOverlay";
-import { getFooterData, type FooterData } from "@/lib/api";
+import { getFooterData, getCategories, type Category, type FooterData } from "@/lib/api";
 import { buildOrganizationJsonLd, buildWebSiteJsonLd } from "@/lib/seo";
 
 // Empty/unset until a real GA4 property ID is provided (see
@@ -30,10 +30,22 @@ async function loadFooterData(): Promise<FooterData | null> {
   }
 }
 
+async function loadNavCategories(): Promise<Category[]> {
+  try {
+    return await getCategories();
+  } catch {
+    // Same reasoning as loadFooterData — a backend hiccup shows a header
+    // with just the home link rather than crashing the whole layout.
+    return [];
+  }
+}
+
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
   // Fetched once here and passed down — the whole footer + the WhatsApp
   // button share this single request rather than each fetching separately.
-  const [footer, locale] = await Promise.all([loadFooterData(), getLocale()]);
+  // categories: real, active catalog categories, not a hardcoded list — see
+  // SiteHeader's own comment on why that distinction matters.
+  const [footer, categories, locale] = await Promise.all([loadFooterData(), loadNavCategories(), getLocale()]);
   const organizationJsonLd = buildOrganizationJsonLd(footer);
   const websiteJsonLd = buildWebSiteJsonLd(locale);
 
@@ -51,7 +63,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd).replace(/</g, "\\u003c") }}
               />
-              <SiteHeader />
+              <SiteHeader categories={categories} />
               <main className="flex-1">{children}</main>
               <SiteFooter footer={footer} />
               <CartDrawer />
