@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Category;
 use App\Models\FooterColumn;
 use App\Models\FooterFeature;
 use App\Models\FooterPaymentMethod;
@@ -65,15 +66,22 @@ class FooterContentSeeder extends Seeder
 
         FooterColumn::query()->delete();
 
-        $browse = FooterColumn::create(['title_ar' => 'تصفح', 'title_fr' => 'Parcourir', 'title_en' => 'Browse', 'sort_order' => 1]);
-        $browseLinks = [
-            ['عطور سعودية', 'Parfums saoudiens', 'Saudi Perfumes', '/category/saudi-perfumes'],
-            ['عطور تركية', 'Parfums turcs', 'Turkish Perfumes', '/category/turkish-perfumes'],
-            ['دهن العود', "Huile d'oud", 'Oud Oil', '/category/oud-oil'],
-            ['عروض حصرية', 'Offres exclusives', 'Exclusive Offers', '/category/exclusive-offers'],
-        ];
-        foreach ($browseLinks as $i => [$ar, $fr, $en, $url]) {
-            $browse->links()->create(['label_ar' => $ar, 'label_fr' => $fr, 'label_en' => $en, 'url' => $url, 'sort_order' => $i]);
+        // Built from whatever real categories already exist (never a fixed
+        // demo slug list) — in local dev CategorySeeder has already run by
+        // this point, so this links to real categories; in production, where
+        // ProductionSeeder deliberately never runs CategorySeeder, there's
+        // nothing to link to yet, so the column is skipped rather than
+        // shipping dead links an admin would otherwise have to notice and
+        // fix by hand — the same reasoning as SiteHeader's nav.
+        $topCategories = Category::where('is_active', true)->whereNull('parent_id')->orderBy('sort_order')->limit(4)->get();
+        if ($topCategories->isNotEmpty()) {
+            $browse = FooterColumn::create(['title_ar' => 'تصفح', 'title_fr' => 'Parcourir', 'title_en' => 'Browse', 'sort_order' => 1]);
+            foreach ($topCategories as $i => $category) {
+                $browse->links()->create([
+                    'label_ar' => $category->name_ar, 'label_fr' => $category->name_fr, 'label_en' => $category->name_en,
+                    'url' => "/category/{$category->slug}", 'sort_order' => $i,
+                ]);
+            }
         }
 
         $support = FooterColumn::create(['title_ar' => 'خدمة العملاء', 'title_fr' => 'Service client', 'title_en' => 'Customer Service', 'sort_order' => 2]);
