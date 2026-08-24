@@ -145,8 +145,16 @@ services:
         sync: false # https://<account_id>.r2.cloudflarestorage.com
       - key: AWS_USE_PATH_STYLE_ENDPOINT
         value: "true"
-      # NEXT_PUBLIC_ASSET_URL on chaba-web must be R2's *public* bucket URL
-      # (R2 -> bucket -> Settings -> Public access) — set there, not here.
+      # Without this, Storage::disk('s3')->url() (every uploaded product/
+      # hero-slide/review image URL) falls back to building the URL from
+      # AWS_ENDPOINT instead — R2's private S3 *API* endpoint, which returns
+      # 400 Authorization to a public GET and never renders. Same public R2
+      # bucket URL as NEXT_PUBLIC_ASSET_URL below (R2 -> bucket -> Settings
+      # -> Public access), both need it, not just one.
+      - key: AWS_URL
+        sync: false
+      # NEXT_PUBLIC_ASSET_URL on chaba-web must be the same public bucket
+      # URL as AWS_URL above — set there too.
       - key: SMS_DRIVER
         value: log # switch to `twilio` once a real account exists (logs OTPs only until then, nothing is texted)
       - key: SMS_DEV_INBOX
