@@ -14,6 +14,16 @@ const SHOW_DELAY_MS = 150;
 // this long even if navigation finishes sooner — avoids a jarring
 // blink-and-vanish on borderline-fast transitions.
 const MIN_DISPLAY_MS = 300;
+// Last-resort safety net, not the primary close mechanism (that's still the
+// pathname/searchParams change below, and it fires in well under a second
+// for the overwhelming majority of navigations). This exists for the cases
+// where the URL never actually changes even though a navigation was
+// started — a popstate that nets out to the same entry (e.g. a fast Back
+// immediately followed by Forward), or a route transition that errors out
+// before it commits — since the only other close signal is a URL diff, both
+// leave nothing to ever flip `pendingRef` back off. Far longer than any real
+// navigation should ever take, so it never fights the normal fast path.
+const MAX_PENDING_MS = 8000;
 
 /**
  * Global route-transition overlay — an always-mounted `fixed inset-0`
@@ -35,14 +45,22 @@ export function ShabaLoaderOverlay() {
   const shownAtRef = useRef<number | null>(null);
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentKeyRef = useRef(`${pathname}?${searchParams.toString()}`);
+  // Same "current location" as currentKeyRef, but in window.location's own
+  // (locale-prefixed) format rather than next-intl's locale-stripped
+  // usePathname() — popstate needs to compare against the real URL the
+  // browser just landed on, which it can only read via window.location.
+  const currentRawUrlRef = useRef(typeof window === "undefined" ? "" : `${window.location.pathname}${window.location.search}`);
 
   useEffect(() => {
     function clearTimers() {
       if (showTimerRef.current) clearTimeout(showTimerRef.current);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
       showTimerRef.current = null;
       hideTimerRef.current = null;
+      maxTimerRef.current = null;
     }
 
     function start() {
@@ -54,6 +72,18 @@ export function ShabaLoaderOverlay() {
         shownAtRef.current = Date.now();
         setVisible(true);
       }, SHOW_DELAY_MS);
+      // Safety net — see MAX_PENDING_MS above. Normal navigations always
+      // clear this via clearTimers() in the "end" effect below, long before
+      // it ever fires.
+      maxTimerRef.current = setTimeout(() => {
+        maxTimerRef.current = null;
+        pendingRef.current = false;
+        if (showTimerRef.current) {
+          clearTimeout(showTimerRef.current);
+          showTimerRef.current = null;
+        }
+        setVisible(false);
+      }, MAX_PENDING_MS);
     }
 
     function handleClick(event: MouseEvent) {
@@ -81,6 +111,14 @@ export function ShabaLoaderOverlay() {
     }
 
     function handlePopState() {
+      // By the time this fires, window.location already reflects the
+      // destination — if it's the same entry we last settled on (a fast
+      // Back immediately followed by Forward can net out this way), there's
+      // no real transition to wait for, and starting anyway would rely
+      // entirely on MAX_PENDING_MS to ever close it again since the "end"
+      // effect below only fires on an actual pathname/searchParams change.
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      if (currentUrl === currentRawUrlRef.current) return;
       start();
     }
 
@@ -106,6 +144,7 @@ export function ShabaLoaderOverlay() {
     const key = `${pathname}?${searchParams.toString()}`;
     if (key === currentKeyRef.current) return;
     currentKeyRef.current = key;
+    currentRawUrlRef.current = `${window.location.pathname}${window.location.search}`;
 
     if (!pendingRef.current) return;
     pendingRef.current = false;
