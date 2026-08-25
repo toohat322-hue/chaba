@@ -6,11 +6,13 @@ use Closure;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Thin wrapper around a tagged cache region for public catalog reads
- * (categories, products). Reads go through remember(); any write to a
- * Product/ProductVariant/ProductImage/Category/Inventory model flushes the
- * whole region (see AppServiceProvider::boot()) rather than tracking
- * per-key invalidation — catalog writes are rare (admin-only) compared to
+ * Thin wrapper around a tagged cache region for public, read-heavy,
+ * admin-written storefront data — catalog (categories, products) plus the
+ * hero slider and footer content, which are fetched on nearly every page
+ * load but only ever change from the admin panel. Reads go through
+ * remember(); any write to one of the models listed in
+ * AppServiceProvider::boot() flushes the whole region rather than tracking
+ * per-key invalidation — these writes are rare (admin-only) compared to
  * reads, so a coarse flush-on-write is simpler and cheap.
  */
 class CatalogCache

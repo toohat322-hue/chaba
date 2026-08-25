@@ -9,6 +9,7 @@ use App\Models\FooterPaymentMethod;
 use App\Models\FooterSocialLink;
 use App\Models\StoreSetting;
 use App\Support\ApiResponse;
+use App\Support\CatalogCache;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -21,6 +22,16 @@ class FooterController extends Controller
 {
     public function __invoke(): JsonResponse
     {
+        // Fetched on *every* storefront page (see the class docblock) — was
+        // 4 uncached queries per request regardless of how many pages a
+        // single visitor loads back to back.
+        $payload = CatalogCache::remember('footer', fn () => $this->build());
+
+        return ApiResponse::success($payload);
+    }
+
+    private function build(): array
+    {
         $settings = StoreSetting::current();
 
         $features = FooterFeature::where('is_active', true)->orderBy('sort_order')->get();
@@ -31,7 +42,7 @@ class FooterController extends Controller
             ->orderBy('sort_order')
             ->get();
 
-        return ApiResponse::success([
+        return [
             'settings' => [
                 'about' => [
                     'title' => [
@@ -84,6 +95,6 @@ class FooterController extends Controller
                 'name' => ['ar' => $method->name_ar, 'fr' => $method->name_fr, 'en' => $method->name_en],
                 'icon' => $method->icon,
             ]),
-        ]);
+        ];
     }
 }

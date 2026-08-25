@@ -3,10 +3,17 @@
 namespace App\Providers;
 
 use App\Models\Category;
+use App\Models\FooterColumn;
+use App\Models\FooterFeature;
+use App\Models\FooterLink;
+use App\Models\FooterPaymentMethod;
+use App\Models\FooterSocialLink;
+use App\Models\HeroSlide;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
+use App\Models\StoreSetting;
 use App\Services\Payments\CibPaymentProvider;
 use App\Services\Payments\CodPaymentProvider;
 use App\Services\Payments\EdahabiaPaymentProvider;
@@ -61,11 +68,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Public catalog reads (ProductController/CategoryController) are
-        // cached via CatalogCache — flush on any write to the models that
-        // feed them, rather than every admin controller remembering to call
-        // CatalogCache::flush() itself.
-        foreach ([Product::class, ProductVariant::class, ProductImage::class, Category::class, Inventory::class] as $model) {
+        // Public storefront reads (ProductController/CategoryController/
+        // HeroSlideController/FooterController) are cached via CatalogCache
+        // — flush on any write to the models that feed them, rather than
+        // every admin controller remembering to call CatalogCache::flush()
+        // itself.
+        $cachedModels = [
+            Product::class, ProductVariant::class, ProductImage::class, Category::class, Inventory::class,
+            HeroSlide::class, StoreSetting::class, FooterColumn::class, FooterLink::class,
+            FooterFeature::class, FooterPaymentMethod::class, FooterSocialLink::class,
+        ];
+        foreach ($cachedModels as $model) {
             $model::saved(fn () => CatalogCache::flush());
             $model::deleted(fn () => CatalogCache::flush());
         }

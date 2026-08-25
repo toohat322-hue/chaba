@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\HeroSlide;
 use App\Support\ApiResponse;
+use App\Support\CatalogCache;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -19,14 +20,22 @@ class HeroSlideController extends Controller
 
     public function __invoke(): JsonResponse
     {
-        $slides = HeroSlide::query()
-            ->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('start_date')->orWhere('start_date', '<=', now()))
-            ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', now()))
-            ->whereHas('product', fn ($q) => $q->where('status', 'active'))
-            ->with(['product' => fn ($q) => $q->with('images')])
-            ->orderBy('sort_order')
-            ->get();
+        // Fetched on every homepage load — worth caching like the rest of
+        // the storefront's read-heavy public data. The one tradeoff: a
+        // slide's start_date/end_date boundary can lag by up to the cache's
+        // TTL instead of flipping the instant the clock crosses it — a
+        // scheduled slide showing up to ~10 minutes early/late is an
+        // acceptable price for not re-querying this on every single request.
+        $slides = CatalogCache::remember('hero-slides', function () {
+            return HeroSlide::query()
+                ->where('is_active', true)
+                ->where(fn ($q) => $q->whereNull('start_date')->orWhere('start_date', '<=', now()))
+                ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', now()))
+                ->whereHas('product', fn ($q) => $q->where('status', 'active'))
+                ->with(['product' => fn ($q) => $q->with('images')])
+                ->orderBy('sort_order')
+                ->get();
+        });
 
         return ApiResponse::success($slides->map(fn ($slide) => $this->present($slide)));
     }
