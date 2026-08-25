@@ -28,12 +28,22 @@ export class ApiError extends Error {
   }
 }
 
+// A hung/very slow backend (a cold-starting Render instance, a dropped
+// connection) must not leave a caller's `await apiFetch(...)` pending
+// forever — every call site either awaits this directly in a Server
+// Component (blocking that section of the page) or wraps it in .catch()
+// for a graceful fallback; neither works if the request itself never
+// settles. 15s is generous enough for a real cold start while still
+// bounding the wait to something a "loading" UI can reasonably show.
+const REQUEST_TIMEOUT_MS = 15_000;
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     // Catalog data (stock, prices, featured flags) changes independently of
     // deploys — this must render fresh per request, never get baked into a
     // static build artifact.
     cache: "no-store",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     ...init,
     headers: { Accept: "application/json", ...init?.headers },
   });

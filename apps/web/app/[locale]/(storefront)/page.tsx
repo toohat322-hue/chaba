@@ -1,13 +1,13 @@
 import { Suspense } from "react";
-import { HeroBanner } from "@/components/home/HeroBanner";
-import { HeroSlider } from "@/components/home/HeroSlider";
+import { HeroSection } from "@/components/home/HeroSection";
+import { HeroSectionSkeleton } from "@/components/home/HeroSectionSkeleton";
 import { TrustBar } from "@/components/home/TrustBar";
 import { MarqueeStrip } from "@/components/home/MarqueeStrip";
 import { DiscoverCategories } from "@/components/home/DiscoverCategories";
+import { DiscoverCategoriesSkeleton } from "@/components/home/DiscoverCategoriesSkeleton";
 import { BestSellersRail } from "@/components/home/BestSellersRail";
 import { BestSellersRailSkeleton } from "@/components/home/BestSellersRailSkeleton";
 import { languageAlternates, canonicalUrl } from "@/lib/seo";
-import { getHeroSlides } from "@/lib/api";
 
 // Catalog data (stock, prices, featured flags) must render fresh per
 // request — this route is intentionally never statically prerendered.
@@ -23,18 +23,21 @@ export async function generateMetadata({ params }: Props) {
   return { alternates: { canonical: canonicalUrl("/", locale), languages: languageAlternates("/") } };
 }
 
-export default async function HomePage() {
-  // Admin-managed hero carousel — a backend outage or zero configured
-  // slides both degrade to the original static hero (HeroBanner) rather
-  // than an empty section or a broken page.
-  const slides = await getHeroSlides().catch(() => []);
-
+export default function HomePage() {
+  // Each data-dependent section gets its own Suspense boundary so a slow or
+  // failing fetch (a cold-starting API, a flaky network) only ever delays
+  // that one section — never the rest of the page, and never a page-wide
+  // "Loading..." blocking everything behind it.
   return (
     <>
-      {slides.length > 0 ? <HeroSlider slides={slides} /> : <HeroBanner />}
+      <Suspense fallback={<HeroSectionSkeleton />}>
+        <HeroSection />
+      </Suspense>
       <TrustBar />
       <MarqueeStrip />
-      <DiscoverCategories />
+      <Suspense fallback={<DiscoverCategoriesSkeleton />}>
+        <DiscoverCategories />
+      </Suspense>
       <Suspense fallback={<BestSellersRailSkeleton />}>
         <BestSellersRail />
       </Suspense>

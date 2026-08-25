@@ -62,6 +62,17 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Next's default (dynamic: 0) means the client router cache treats
+    // every dynamic route — this whole storefront, since catalog data is
+    // fetched with cache: "no-store" — as instantly stale, so *every*
+    // back/forward navigation refetches from scratch and blocks on it: a
+    // Home -> Product -> Back always re-renders Home from zero, even
+    // seconds later. This lets a recently-rendered page reappear instantly
+    // from the client cache on Back/Forward, then quietly revalidate — a
+    // fresh Link click or a hard reload still always hits the server.
+    staleTimes: { dynamic: 30 },
+  },
   images: {
     // Product/hero-slide images live on a separate S3/MinIO origin (same
     // env var already trusted for the CSP img-src directive above) — this
