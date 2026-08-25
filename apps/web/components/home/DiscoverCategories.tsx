@@ -2,6 +2,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { getCategories } from "@/lib/api";
 import { Link } from "@/i18n/navigation";
 import { PerfumeGlyph } from "@/components/product/PerfumeGlyph";
+import { CategoryTileImage } from "./CategoryTileImage";
 
 type Locale = "ar" | "fr" | "en";
 
@@ -35,11 +36,9 @@ export async function DiscoverCategories() {
             className="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-2xl shadow-soft transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             {category.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element -- remote catalog image
-              <img
-                src={category.image_url}
+              <CategoryTileImage
+                imageUrl={category.image_url}
                 alt={category.name[loc]}
-                loading="lazy"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
               />
             ) : (

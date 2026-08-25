@@ -6,6 +6,7 @@ import { formatPrice, formatSize } from "@/lib/currency";
 import { Link } from "@/i18n/navigation";
 import { PerfumeGlyph } from "@/components/product/PerfumeGlyph";
 import { useCart } from "./CartProvider";
+import { useImageRetry } from "@/lib/useImageRetry";
 import type { CartItemDetail } from "@/lib/api";
 
 type Locale = "ar" | "fr" | "en";
@@ -20,6 +21,7 @@ export function CartLineItem({ item, compact = false }: { item: CartItemDetail; 
   // updates), and "-" at quantity 1 silently sending quantity:0 to the API
   // instead of going through the explicit remove action.
   const [pending, setPending] = useState(false);
+  const image = useImageRetry();
 
   const sizeLabel = item.size_value != null && item.size_unit ? formatSize(item.size_value, item.size_unit, locale) : item.size;
   const variantLabel = [item.color, sizeLabel].filter(Boolean).join(" / ");
@@ -36,9 +38,15 @@ export function CartLineItem({ item, compact = false }: { item: CartItemDetail; 
   return (
     <div className={`flex gap-4 border-b border-primary/10 last:border-b-0 ${compact ? "py-4" : "py-6"}`}>
       <Link href={`/products/${item.product_slug}`} className={`${imageSize} shrink-0 overflow-hidden rounded-xl`}>
-        {item.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element -- remote catalog image
-          <img src={item.image_url} alt={item.product_name[locale]} className="h-full w-full object-cover" />
+        {item.image_url && !image.failed ? (
+          // eslint-disable-next-line @next/next/no-img-element -- remote catalog image, retried on error
+          <img
+            key={image.key}
+            src={item.image_url}
+            alt={item.product_name[locale]}
+            onError={image.onError}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <PerfumeGlyph className="h-full w-full" />
         )}

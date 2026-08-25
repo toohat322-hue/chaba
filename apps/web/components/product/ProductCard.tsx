@@ -3,6 +3,7 @@ import Image from "next/image";
 import { formatPrice } from "@/lib/currency";
 import type { ProductListItem } from "@/lib/api";
 import { Link } from "@/i18n/navigation";
+import { useImageRetry } from "@/lib/useImageRetry";
 import { StarRating } from "@/components/reviews/StarRating";
 import { PerfumeGlyph } from "./PerfumeGlyph";
 import { WishlistToggleButton } from "./WishlistToggleButton";
@@ -27,6 +28,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
   const locale = useLocale() as "ar" | "fr" | "en";
   const t = useTranslations("Product");
   const badge = badgeFor(product);
+  const image = useImageRetry();
 
   return (
     <Link
@@ -34,8 +36,9 @@ export function ProductCard({ product }: { product: ProductListItem }) {
       className="group flex flex-col overflow-hidden rounded-2xl border border-primary/8 bg-white shadow-soft transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
     >
       <div className="relative aspect-square overflow-hidden bg-primary/5">
-        {product.image_url ? (
+        {product.image_url && !image.failed ? (
           <Image
+            key={image.key}
             src={product.image_url}
             alt={product.image_alt ?? product.name[locale]}
             fill
@@ -43,6 +46,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
             className={`object-cover transition-transform duration-300 ease-out group-hover:scale-105 ${
               product.in_stock ? "" : "grayscale"
             }`}
+            onError={image.onError}
           />
         ) : (
           <PerfumeGlyph

@@ -2,6 +2,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { HeroSlide } from "@/lib/api";
+import { useImageRetry } from "@/lib/useImageRetry";
 
 type Locale = "ar" | "fr" | "en";
 
@@ -32,19 +33,28 @@ export function HeroSlideVisual({
   const title = slide.title[locale];
   const subtitle = slide.subtitle[locale];
   const ctaLabel = slide.cta_label[locale];
+  const image = useImageRetry();
 
   const content = (
     <>
-      <picture>
-        {slide.mobile_image_url && <source media="(max-width: 640px)" srcSet={slide.mobile_image_url} />}
-        <img
-          src={slide.image_url ?? "/brand/hero.jpg"}
-          alt=""
-          loading={eager ? "eager" : "lazy"}
-          fetchPriority={eager ? "high" : "auto"}
-          className={`absolute inset-0 h-full w-full object-cover object-center ${animate ? "animate-hero-zoom" : ""}`}
-        />
-      </picture>
+      {/* A couple of quick retries recover from a transient load failure
+          without the visitor needing to refresh the page; if it's still
+          broken after that, the section's own bg-primary + scrim already
+          look intentional on their own — headline/CTA stay fully readable
+          either way, so there's nothing else to fall back to here. */}
+      {!image.failed && (
+        <picture key={image.key}>
+          {slide.mobile_image_url && <source media="(max-width: 640px)" srcSet={slide.mobile_image_url} />}
+          <img
+            src={slide.image_url ?? "/brand/hero.jpg"}
+            alt=""
+            loading={eager ? "eager" : "lazy"}
+            fetchPriority={eager ? "high" : "auto"}
+            onError={image.onError}
+            className={`absolute inset-0 h-full w-full object-cover object-center ${animate ? "animate-hero-zoom" : ""}`}
+          />
+        </picture>
+      )}
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/70 via-primary/20 to-transparent" />
 

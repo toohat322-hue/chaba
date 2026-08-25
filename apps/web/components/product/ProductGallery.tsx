@@ -11,6 +11,10 @@ type Locale = "ar" | "fr" | "en";
 
 const AUTOPLAY_MS = 5000;
 const SWIPE_THRESHOLD_PX = 50;
+// Same bounded-retry behavior as useImageRetry (lib/useImageRetry.ts) — not
+// reused directly since it tracks one image, and this gallery needs a
+// separate attempt count per index.
+const MAX_IMAGE_RETRIES = 2;
 
 function ChevronLeft({ className }: { className?: string }) {
   return (
@@ -37,8 +41,11 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
   const [isHovering, setIsHovering] = useState(false);
   // Per-image, not gallery-wide — one bad URL falls back to the placeholder
   // glyph for just that slide; the other real photos and the dots/arrows
-  // keep working normally.
+  // keep working normally. A couple of retries first (a transient load
+  // failure recovers on its own rather than needing a page refresh); only
+  // a still-broken image after that gets the permanent fallback.
   const [failedIndexes, setFailedIndexes] = useState<ReadonlySet<number>>(new Set());
+  const [retryAttempts, setRetryAttempts] = useState<Readonly<Record<number, number>>>({});
   const touchStartX = useRef<number | null>(null);
 
   const count = images.length;
@@ -69,6 +76,17 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
     const draggedLeft = deltaX < 0;
     if (draggedLeft === !isRtl) next();
     else prev();
+  }
+
+  function handleImageError(index: number) {
+    setRetryAttempts((prev) => {
+      const attempts = prev[index] ?? 0;
+      if (attempts >= MAX_IMAGE_RETRIES) {
+        setFailedIndexes((failed) => new Set(failed).add(index));
+        return prev;
+      }
+      return { ...prev, [index]: attempts + 1 };
+    });
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {
@@ -116,13 +134,14 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
             <PerfumeGlyph className="h-full w-full" />
           ) : (
             <Image
+              key={retryAttempts[i] ?? 0}
               src={image.url}
               alt={image.alt_text ?? title}
               fill
               sizes="(min-width: 768px) 50vw, 100vw"
               priority={i === 0}
               className="object-cover"
-              onError={() => setFailedIndexes((prev) => new Set(prev).add(i))}
+              onError={() => handleImageError(i)}
             />
           )}
         </div>

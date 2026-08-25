@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useCustomerAuth } from "@/components/customer/CustomerAuthProvider";
+import { ReviewPhoto } from "./ReviewPhoto";
 import {
   ApiError,
   deleteReview,
@@ -161,8 +162,7 @@ export function ReviewsSection({ productSlug }: { productSlug: string }) {
 
             <div className="mt-3 flex flex-wrap gap-2">
               {myReview.images.map((image) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={image.id} src={image.url} alt={t("reviewPhotoAlt")} className="h-16 w-16 rounded-lg object-cover" />
+                <ReviewPhoto key={image.id} url={image.url} alt={t("reviewPhotoAlt")} />
               ))}
               {myReview.images.length < 5 && (
                 <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg border border-dashed border-primary/30 text-caption text-ink/40">
@@ -240,8 +240,7 @@ export function ReviewsSection({ productSlug }: { productSlug: string }) {
               {review.images.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {review.images.map((image) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={image.id} src={image.url} alt={t("reviewPhotoAlt")} className="h-16 w-16 rounded-lg object-cover" />
+                    <ReviewPhoto key={image.id} url={image.url} alt={t("reviewPhotoAlt")} />
                   ))}
                 </div>
               )}

@@ -119,16 +119,20 @@ describe("ProductGallery", () => {
     expect(screen.getByRole("button", { name: "Go to image 1" })).toHaveAttribute("aria-current", "true");
   });
 
-  it("falls back to the placeholder glyph for an image that fails to load, without affecting the others", () => {
+  it("retries a failed image twice before falling back to the placeholder glyph, without affecting the others", () => {
     const { container } = renderGallery();
 
-    const allImgs = Array.from(container.querySelectorAll("img"));
-    expect(allImgs).toHaveLength(3);
-    const brokenImg = allImgs.find((img) => img.src.includes("two.jpg"))!;
-    fireEvent.error(brokenImg);
+    const findBroken = () => container.querySelectorAll("img").item(1) ?? null;
 
-    // The broken slide's <img> is gone (replaced by the placeholder glyph);
-    // the other two real photos are untouched.
+    // First two failures retry (the <img> for slide 2 stays present, just remounted).
+    fireEvent.error(findBroken()!);
+    expect(container.querySelectorAll("img")).toHaveLength(3);
+    fireEvent.error(findBroken()!);
+    expect(container.querySelectorAll("img")).toHaveLength(3);
+
+    // Third failure gives up — that slide's <img> is gone (replaced by the
+    // placeholder glyph); the other two real photos are untouched.
+    fireEvent.error(findBroken()!);
     const remainingImgs = Array.from(container.querySelectorAll("img"));
     expect(remainingImgs).toHaveLength(2);
     expect(remainingImgs.some((img) => img.src.includes("two.jpg"))).toBe(false);
