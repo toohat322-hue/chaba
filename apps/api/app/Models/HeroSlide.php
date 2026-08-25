@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\MediaUrl;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +19,16 @@ class HeroSlide extends Model
         'cta_label_ar', 'cta_label_fr', 'cta_label_en',
         'is_active', 'sort_order', 'start_date', 'end_date',
     ];
+
+    protected function imageUrl(): Attribute
+    {
+        return Attribute::make(get: fn (?string $value) => MediaUrl::proxy($value));
+    }
+
+    protected function mobileImageUrl(): Attribute
+    {
+        return Attribute::make(get: fn (?string $value) => MediaUrl::proxy($value));
+    }
 
     protected function casts(): array
     {

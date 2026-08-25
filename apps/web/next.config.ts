@@ -11,7 +11,8 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 // `TypeError: Invalid URL` and failed the entire production build outright
 // whenever this var hadn't been set yet — exactly the state a fresh deploy
 // is in before its cross-service URL is filled in (see docs/DEPLOYMENT.md).
-const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").origin;
+const apiUrl = new URL(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
+const apiOrigin = apiUrl.origin;
 
 // Product/hero-slide images are uploaded to a separate S3/MinIO origin
 // (apps/api's AWS_ENDPOINT), not served from the API origin itself — img-src
@@ -74,19 +75,18 @@ const nextConfig: NextConfig = {
     staleTimes: { dynamic: 30 },
   },
   images: {
-    // Product/hero-slide images live on a separate S3/MinIO origin (same
-    // env var already trusted for the CSP img-src directive above) — this
-    // is what makes next/image (used by ProductGallery/ProductCard for
-    // responsive srcset + format negotiation) able to optimize them.
-    remotePatterns: assetUrl
-      ? [
-          {
-            protocol: assetUrl.protocol === "https:" ? "https" : "http",
-            hostname: assetUrl.hostname,
-            port: assetUrl.port,
-          },
-        ]
-      : [],
+    // Product/hero-slide URLs from the API now point at the API's own
+    // /media/{key} proxy (see apps/api's MediaUrl::proxy) rather than the
+    // raw R2 origin directly — browsers hitting r2.dev's shared dev domain
+    // straight-up had genuine TLS handshake failures on some clients. The
+    // R2 origin is still allowlisted too, as a harmless leftover for
+    // anything not yet rewritten (e.g. a stale cached API response).
+    remotePatterns: [
+      { protocol: apiUrl.protocol === "https:" ? "https" : "http", hostname: apiUrl.hostname, port: apiUrl.port },
+      ...(assetUrl
+        ? [{ protocol: assetUrl.protocol === "https:" ? "https" : "http", hostname: assetUrl.hostname, port: assetUrl.port } as const]
+        : []),
+    ],
     // Dev-only: local MinIO is reached at a loopback address
     // (NEXT_PUBLIC_ASSET_URL=http://127.0.0.1:9000), which Next's image
     // optimizer refuses by default as an SSRF precaution. That protection

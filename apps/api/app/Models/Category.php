@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\MediaUrl;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +17,11 @@ class Category extends Model
         'parent_id', 'name_ar', 'name_fr', 'name_en', 'slug',
         'image_url', 'sort_order', 'is_active', 'seo_title', 'seo_description',
     ];
+
+    protected function imageUrl(): Attribute
+    {
+        return Attribute::make(get: fn (?string $value) => MediaUrl::proxy($value));
+    }
 
     protected function casts(): array
     {

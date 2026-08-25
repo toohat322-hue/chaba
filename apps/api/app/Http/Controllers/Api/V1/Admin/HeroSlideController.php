@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\UpdateHeroSlideRequest;
 use App\Models\HeroSlide;
 use App\Models\Product;
 use App\Support\ApiResponse;
+use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -58,8 +59,8 @@ class HeroSlideController extends Controller
             throw new ApiException('not_found', 'Hero slide not found.', 404);
         }
 
-        $this->deleteStoredImage($slide->image_url);
-        $this->deleteStoredImage($slide->mobile_image_url);
+        $this->deleteStoredImage($slide->getRawOriginal('image_url'));
+        $this->deleteStoredImage($slide->getRawOriginal('mobile_image_url'));
         $slide->delete();
 
         return ApiResponse::success(['message' => 'Hero slide deleted.']);
@@ -86,7 +87,7 @@ class HeroSlideController extends Controller
         // A slide has exactly one desktop and one mobile image (not a
         // gallery like ProductImage) — uploading again replaces the
         // existing one rather than adding a row.
-        $this->deleteStoredImage($slide->$column);
+        $this->deleteStoredImage($slide->getRawOriginal($column));
 
         $file = $request->file('image');
         $path = 'hero-slides/'.$slide->id.'/'.Str::uuid().'.'.$file->extension();
@@ -124,8 +125,7 @@ class HeroSlideController extends Controller
             return;
         }
 
-        $path = parse_url($url, PHP_URL_PATH);
-        $key = $path ? ltrim(str_replace('/'.config('filesystems.disks.s3.bucket'), '', $path), '/') : null;
+        $key = MediaUrl::key($url);
 
         if ($key) {
             Storage::disk('s3')->delete($key);

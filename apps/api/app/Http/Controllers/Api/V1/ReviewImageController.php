@@ -8,6 +8,7 @@ use App\Http\Requests\StoreReviewImageRequest;
 use App\Models\Review;
 use App\Models\ReviewImage;
 use App\Support\ApiResponse;
+use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -49,8 +50,7 @@ class ReviewImageController extends Controller
             throw new ApiException('not_found', 'Image not found.', 404);
         }
 
-        $path = parse_url($imageModel->url, PHP_URL_PATH);
-        $key = $path ? ltrim(str_replace('/'.config('filesystems.disks.s3.bucket'), '', $path), '/') : null;
+        $key = MediaUrl::key($imageModel->getRawOriginal('url'));
 
         if ($key) {
             Storage::disk('s3')->delete($key);
