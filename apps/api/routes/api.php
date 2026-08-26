@@ -270,6 +270,8 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware('permission:categories.edit')->group(function (): void {
             Route::post('/categories', [AdminCategoryController::class, 'store']);
             Route::patch('/categories/{category}', [AdminCategoryController::class, 'update']);
+            Route::post('/categories/{category}/image', [AdminCategoryController::class, 'uploadImage']);
+            Route::delete('/categories/{category}/image', [AdminCategoryController::class, 'deleteImage']);
         });
         Route::middleware('permission:categories.delete')->group(function (): void {
             Route::delete('/categories/{category}', [AdminCategoryController::class, 'destroy']);

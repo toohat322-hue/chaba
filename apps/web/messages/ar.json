@@ -234,6 +234,8 @@
     "apply": "تطبيق",
     "categoriesTitle": "الفئات",
     "newCategory": "فئة جديدة",
+    "categoryImage": "صورة الفئة",
+    "categoryImageAfterSave": "احفظ الفئة أولًا — سيظهر رفع الصورة هنا مباشرة بمجرد إنشائها.",
     "active": "نشط",
     "inactive": "غير نشط",
     "productCount": "عدد المنتجات",

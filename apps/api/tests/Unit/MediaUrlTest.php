@@ -13,6 +13,7 @@ class MediaUrlTest extends TestCase
 
         config([
             'filesystems.disks.s3.url' => 'https://pub-test.r2.dev',
+            'filesystems.disks.s3.endpoint' => 'http://127.0.0.1:9000',
             'filesystems.disks.s3.bucket' => 'chaba-bucket',
             'app.url' => 'https://chaba-api.onrender.com',
         ]);
@@ -51,5 +52,24 @@ class MediaUrlTest extends TestCase
             'products/perfume/uuid.jpg',
             MediaUrl::key('https://pub-test.r2.dev/chaba-bucket/products/perfume/uuid.jpg'),
         );
+    }
+
+    public function test_key_also_extracts_from_a_local_minio_style_url(): void
+    {
+        // No AWS_URL configured locally — Storage::disk('s3')->url() falls
+        // back to AWS_ENDPOINT with the bucket name in the path (path-style).
+        $this->assertSame(
+            'products/perfume/uuid.jpg',
+            MediaUrl::key('http://127.0.0.1:9000/chaba-bucket/products/perfume/uuid.jpg'),
+        );
+    }
+
+    public function test_proxy_does_not_rewrite_a_local_minio_style_url(): void
+    {
+        // Only the public AWS_URL host gets proxied — local MinIO URLs have
+        // no r2.dev-style TLS problem, so they're left as-is.
+        $url = 'http://127.0.0.1:9000/chaba-bucket/products/perfume/uuid.jpg';
+
+        $this->assertSame($url, MediaUrl::proxy($url));
     }
 }

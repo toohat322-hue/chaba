@@ -874,6 +874,23 @@ export function deleteAdminCategory(id: string): Promise<{ message: string }> {
   return adminFetch(`/admin/categories/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
+export async function uploadCategoryImage(categoryId: string, file: File): Promise<AdminCategory> {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const { access } = getAdminTokens();
+
+  return apiFetch(`/admin/categories/${encodeURIComponent(categoryId)}/image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${access ?? ""}` },
+    body: formData,
+  });
+}
+
+export function deleteCategoryImage(categoryId: string): Promise<AdminCategory> {
+  return adminFetch(`/admin/categories/${encodeURIComponent(categoryId)}/image`, { method: "DELETE" });
+}
+
 export type AdminCustomer = {
   id: string;
   full_name: string;

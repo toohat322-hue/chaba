@@ -5,6 +5,8 @@ namespace Tests\Feature\Admin;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\Concerns\CreatesStaffUsers;
 use Tests\TestCase;
@@ -18,6 +20,15 @@ class AdminCategoryTest extends TestCase
     {
         parent::setUp();
         $this->seedRbac();
+        Storage::fake('s3');
+    }
+
+    private function makeCategory(): Category
+    {
+        return Category::create([
+            'name_ar' => 'فئة', 'name_fr' => 'Cat', 'name_en' => 'Cat',
+            'slug' => 'cat-'.Str::random(8), 'is_active' => true,
+        ]);
     }
 
     public function test_create_and_update_a_category(): void
@@ -110,5 +121,59 @@ class AdminCategoryTest extends TestCase
             ->assertStatus(200);
 
         $this->assertDatabaseMissing('categories', ['id' => $category->id]);
+    }
+
+    public function test_an_image_can_be_uploaded_and_replaced(): void
+    {
+        [, $headers] = $this->actingAsRole('Product Manager');
+        $category = $this->makeCategory();
+
+        $upload = $this->withHeaders($headers)->post("/api/v1/admin/categories/{$category->id}/image", [
+            'image' => UploadedFile::fake()->image('cat.jpg'),
+        ]);
+        $upload->assertStatus(200);
+        $this->assertNotNull($upload->json('data.image_url'));
+
+        // Re-uploading replaces rather than duplicating.
+        $replace = $this->withHeaders($headers)->post("/api/v1/admin/categories/{$category->id}/image", [
+            'image' => UploadedFile::fake()->image('cat-2.jpg'),
+        ]);
+        $replace->assertStatus(200);
+        $this->assertNotSame($upload->json('data.image_url'), $replace->json('data.image_url'));
+    }
+
+    public function test_uploading_a_non_image_file_is_rejected(): void
+    {
+        [, $headers] = $this->actingAsRole('Product Manager');
+        $category = $this->makeCategory();
+
+        $this->withHeaders($headers)->post("/api/v1/admin/categories/{$category->id}/image", [
+            'image' => UploadedFile::fake()->create('document.pdf', 100, 'application/pdf'),
+        ])->assertStatus(400);
+    }
+
+    public function test_an_image_can_be_removed_without_deleting_the_category(): void
+    {
+        [, $headers] = $this->actingAsRole('Product Manager');
+        $category = $this->makeCategory();
+
+        $this->withHeaders($headers)->post("/api/v1/admin/categories/{$category->id}/image", [
+            'image' => UploadedFile::fake()->image('cat.jpg'),
+        ])->assertStatus(200);
+
+        $remove = $this->withHeaders($headers)->deleteJson("/api/v1/admin/categories/{$category->id}/image");
+        $remove->assertStatus(200)->assertJsonPath('data.image_url', null);
+
+        $this->assertDatabaseHas('categories', ['id' => $category->id, 'image_url' => null]);
+    }
+
+    public function test_a_role_without_categories_edit_cannot_upload_an_image(): void
+    {
+        [, $headers] = $this->actingAsRole('Customer Support');
+        $category = $this->makeCategory();
+
+        $this->withHeaders($headers)->post("/api/v1/admin/categories/{$category->id}/image", [
+            'image' => UploadedFile::fake()->image('cat.jpg'),
+        ])->assertStatus(403);
     }
 }

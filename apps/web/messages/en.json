@@ -234,6 +234,8 @@
     "apply": "Apply",
     "categoriesTitle": "Categories",
     "newCategory": "New Category",
+    "categoryImage": "Category image",
+    "categoryImageAfterSave": "Save the category first — the image upload will appear right here once it exists.",
     "active": "Active",
     "inactive": "Inactive",
     "productCount": "Product count",

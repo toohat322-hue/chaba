@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreCategoryImageRequest;
 use App\Http\Requests\Admin\StoreCategoryRequest;
 use App\Http\Requests\Admin\UpdateCategoryRequest;
 use App\Models\Category;
 use App\Models\SlugRedirect;
 use App\Support\ApiResponse;
 use App\Support\AuditLogger;
+use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class CategoryController extends Controller
@@ -65,6 +68,52 @@ class CategoryController extends Controller
         AuditLogger::log($request->user(), 'category.updated', $model, $changes);
 
         return ApiResponse::success($this->serialize($model->loadCount('products')));
+    }
+
+    public function uploadImage(StoreCategoryImageRequest $request, string $category): JsonResponse
+    {
+        $model = Category::find($category);
+
+        if (! $model) {
+            throw new ApiException('not_found', 'Category not found.', 404);
+        }
+
+        $this->deleteStoredImage($model->getRawOriginal('image_url'));
+
+        $file = $request->file('image');
+        $path = 'categories/'.$model->id.'/'.Str::uuid().'.'.$file->extension();
+        Storage::disk('s3')->put($path, file_get_contents($file->getRealPath()), 'public');
+
+        $model->update(['image_url' => Storage::disk('s3')->url($path)]);
+
+        AuditLogger::log($request->user(), 'category.image_uploaded', $model);
+
+        return ApiResponse::success($this->serialize($model->loadCount('products')));
+    }
+
+    public function deleteImage(Request $request, string $category): JsonResponse
+    {
+        $model = Category::find($category);
+
+        if (! $model) {
+            throw new ApiException('not_found', 'Category not found.', 404);
+        }
+
+        $this->deleteStoredImage($model->getRawOriginal('image_url'));
+        $model->update(['image_url' => null]);
+
+        AuditLogger::log($request->user(), 'category.image_deleted', $model);
+
+        return ApiResponse::success($this->serialize($model->loadCount('products')));
+    }
+
+    private function deleteStoredImage(?string $url): void
+    {
+        $key = MediaUrl::key($url);
+
+        if ($key) {
+            Storage::disk('s3')->delete($key);
+        }
     }
 
     /**

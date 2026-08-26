@@ -9,6 +9,7 @@ import {
   updateAdminCategory,
   type AdminCategory,
 } from "@/lib/api";
+import { CategoryImageUpload } from "./CategoryImageUpload";
 
 type Locale = "ar" | "fr" | "en";
 
@@ -38,6 +39,7 @@ export function CategoryForm({ categoryId, initial }: { categoryId?: string; ini
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
   const [seoTitle, setSeoTitle] = useState(initial?.seo_title ?? "");
   const [seoDescription, setSeoDescription] = useState(initial?.seo_description ?? "");
+  const [imageUrl, setImageUrl] = useState(initial?.image_url ?? null);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +133,19 @@ export function CategoryForm({ categoryId, initial }: { categoryId?: string; ini
         <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
         {t("active")}
       </label>
+
+      {categoryId ? (
+        <CategoryImageUpload
+          categoryId={categoryId}
+          imageUrl={imageUrl}
+          onChange={(category) => setImageUrl(category.image_url)}
+        />
+      ) : (
+        // Uploading needs a real category id (CategoryImageUpload posts to
+        // /admin/categories/{id}/image), which doesn't exist until this form
+        // is submitted once.
+        <p className="border-t border-primary/10 pt-3 text-small text-ink/60">{t("categoryImageAfterSave")}</p>
+      )}
 
       {error && <p className="text-small text-error">{error}</p>}
 
