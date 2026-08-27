@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { updateAdminDeliveryFee, type AdminDeliveryFee } from "@/lib/api";
+import { PriceInput } from "./PriceInput";
 
 type Locale = "ar" | "fr" | "en";
 
@@ -10,7 +11,10 @@ export function DeliveryFeeRow({ initial }: { initial: AdminDeliveryFee }) {
   const t = useTranslations("Admin");
   const locale = useLocale() as Locale;
 
-  const [fee, setFee] = useState(String(initial.fee));
+  // Every price in this system is stored as integer centimes (PRD A6) —
+  // this field works in whole DZD like every other admin price input
+  // (see PriceInput), converting at load/submit time.
+  const [fee, setFee] = useState(String(initial.fee / 100));
   const [etaMin, setEtaMin] = useState(initial.eta_min_days != null ? String(initial.eta_min_days) : "");
   const [etaMax, setEtaMax] = useState(initial.eta_max_days != null ? String(initial.eta_max_days) : "");
   const [saving, setSaving] = useState(false);
@@ -24,7 +28,7 @@ export function DeliveryFeeRow({ initial }: { initial: AdminDeliveryFee }) {
     setError(null);
     try {
       await updateAdminDeliveryFee(initial.wilaya_code, {
-        fee: Number(fee),
+        fee: Math.round(Number(fee) * 100),
         eta_min_days: etaMin ? Number(etaMin) : null,
         eta_max_days: etaMax ? Number(etaMax) : null,
       });
@@ -44,11 +48,10 @@ export function DeliveryFeeRow({ initial }: { initial: AdminDeliveryFee }) {
       <td className="px-4 py-2 text-ink">{initial.wilaya_name[locale]}</td>
       <td className="px-4 py-2">
         <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
-          <input
-            type="number"
+          <PriceInput
             min={0}
             value={fee}
-            onChange={(event) => setFee(event.target.value)}
+            onChange={setFee}
             className="w-28 rounded-lg border border-primary/15 bg-white px-2 py-1 text-small text-ink focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <input

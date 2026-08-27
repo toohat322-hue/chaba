@@ -58,10 +58,10 @@ class CheckoutTest extends TestCase
         return $variant;
     }
 
-    private function makeCommune(): Commune
+    private function makeCommune(int $deliveryFee = 0): Commune
     {
         $wilaya = Wilaya::create(['code' => '16', 'name_ar' => 'الجزائر', 'name_fr' => 'Alger', 'name_en' => 'Algiers']);
-        DeliveryFee::create(['wilaya_code' => $wilaya->code, 'delivery_method' => 'home']);
+        DeliveryFee::create(['wilaya_code' => $wilaya->code, 'delivery_method' => 'home', 'fee' => $deliveryFee]);
 
         return Commune::create([
             'wilaya_code' => $wilaya->code,
@@ -111,6 +111,36 @@ class CheckoutTest extends TestCase
             ->assertJsonPath('data.whatsapp', null);
 
         $this->assertMatchesRegularExpression('/^CHB-\d{4}-\d{6}$/', $response->json('data.order.order_number'));
+    }
+
+    /**
+     * Every price in this system is centimes (PRD A6) — 5000 DA is 500000,
+     * 800 DA is 80000. Pins the actual arithmetic (not just that a fee is
+     * applied) so a unit mismatch between the delivery fee and the rest of
+     * the order total would fail this test rather than silently shipping.
+     */
+    public function test_order_total_is_subtotal_plus_delivery_fee_in_centimes(): void
+    {
+        $variant = $this->makeVariant(stock: 10, price: 500000);
+        $commune = $this->makeCommune(deliveryFee: 80000);
+        $headers = $this->guestHeader();
+
+        $this->withHeaders($headers)->postJson('/api/v1/cart/items', ['variant_id' => $variant->id, 'quantity' => 1])
+            ->assertStatus(201);
+
+        $response = $this->withHeaders($headers)->postJson('/api/v1/checkout', [
+            'customer_name' => 'Amina Test',
+            'customer_phone' => '0555222333',
+            'address' => $this->inlineAddress($commune),
+            'delivery_method' => 'home',
+            'payment_method' => 'cod',
+            'locale' => 'en',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.order.subtotal', 500000)
+            ->assertJsonPath('data.order.delivery_fee', 80000)
+            ->assertJsonPath('data.order.grand_total', 580000);
     }
 
     public function test_checkout_commits_stock_and_converts_the_cart(): void
