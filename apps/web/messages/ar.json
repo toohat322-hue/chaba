@@ -307,6 +307,8 @@
     "newStatus": "الحالة الجديدة",
     "noteOptional": "ملاحظة (اختياري)",
     "deliveryFeesTitle": "رسوم التوصيل",
+    "homeDeliveryPrice": "سعر التوصيل إلى المنزل",
+    "pickupDeliveryPrice": "سعر التوصيل إلى نقطة الاستلام",
     "etaMinDays": "أقل مدة (أيام)",
     "etaMaxDays": "أقصى مدة (أيام)",
     "navReviews": "التقييمات",

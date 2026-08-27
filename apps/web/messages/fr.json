@@ -307,6 +307,8 @@
     "newStatus": "Nouveau statut",
     "noteOptional": "Note (optionnel)",
     "deliveryFeesTitle": "Frais de livraison",
+    "homeDeliveryPrice": "Prix livraison à domicile",
+    "pickupDeliveryPrice": "Prix point de retrait",
     "etaMinDays": "Délai min (jours)",
     "etaMaxDays": "Délai max (jours)",
     "navReviews": "Avis",

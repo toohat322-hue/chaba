@@ -307,6 +307,8 @@
     "newStatus": "New status",
     "noteOptional": "Note (optional)",
     "deliveryFeesTitle": "Delivery Fees",
+    "homeDeliveryPrice": "Home delivery price",
+    "pickupDeliveryPrice": "Pickup point price",
     "etaMinDays": "Min ETA (days)",
     "etaMaxDays": "Max ETA (days)",
     "navReviews": "Reviews",

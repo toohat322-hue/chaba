@@ -43,7 +43,9 @@ export default function CheckoutPage() {
 
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
   const [communes, setCommunes] = useState<Commune[]>([]);
-  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [deliveryMethod, setDeliveryMethod] = useState<"home" | "pickup">("home");
+  const [homeFee, setHomeFee] = useState<number | null>(null);
+  const [pickupFee, setPickupFee] = useState<number | null>(null);
 
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -118,14 +120,29 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!activeWilayaCode) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting the fee display when no wilaya is active, not deriving state from a render value
-      setDeliveryFee(0);
+      setHomeFee(null);
+      setPickupFee(null);
       return;
     }
 
     getDeliveryFee(activeWilayaCode)
-      .then((data) => setDeliveryFee(data.home?.fee ?? 0))
-      .catch(() => setDeliveryFee(0));
+      .then((data) => {
+        setHomeFee(data.home?.fee ?? null);
+        setPickupFee(data.pickup?.fee ?? null);
+      })
+      .catch(() => {
+        setHomeFee(null);
+        setPickupFee(null);
+      });
   }, [activeWilayaCode]);
+
+  // Pickup isn't configured for every wilaya — if the customer had it
+  // selected and then switched to a wilaya where it isn't available, this
+  // falls back to home delivery for every calculation/submission below
+  // rather than leaving an unusable option selected. Derived at render
+  // time (not via an effect) so it takes effect the instant pickupFee
+  // changes, with no extra render round-trip.
+  const effectiveDeliveryMethod = deliveryMethod === "pickup" && pickupFee === null ? "home" : deliveryMethod;
 
   useEffect(() => {
     if (!wilayaCode) {
@@ -144,7 +161,8 @@ export default function CheckoutPage() {
   const subtotal = cart?.subtotal ?? 0;
   const discountTotal = cart?.discount_total ?? 0;
   const isFreeShipping = cart?.coupon?.type === "free_shipping";
-  const effectiveDeliveryFee = isFreeShipping ? 0 : deliveryFee;
+  const selectedDeliveryFee = (effectiveDeliveryMethod === "pickup" ? pickupFee : homeFee) ?? 0;
+  const effectiveDeliveryFee = isFreeShipping ? 0 : selectedDeliveryFee;
   const total = subtotal - discountTotal + effectiveDeliveryFee;
 
   async function handleSubmit(event: FormEvent) {
@@ -173,7 +191,7 @@ export default function CheckoutPage() {
                 postal_code: postalCode || undefined,
               },
             }),
-        delivery_method: "home",
+        delivery_method: effectiveDeliveryMethod,
         payment_method: paymentMethod,
         notes: notes || undefined,
         locale,
@@ -383,14 +401,46 @@ export default function CheckoutPage() {
           <section>
             <h2 className="mb-4 text-h3 font-semibold text-ink">{t("deliveryMethodTitle")}</h2>
             <div className="space-y-2">
-              <div className="flex items-center justify-between rounded-lg border-2 border-primary bg-primary/5 px-4 py-4">
-                <span className="text-body font-medium text-ink">{t("homeDelivery")}</span>
-                <span className="text-small font-medium text-primary">{formatPrice(deliveryFee, locale)}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-primary/10 px-4 py-4 opacity-50">
-                <span className="text-body text-ink/60">{t("pickupDelivery")}</span>
-                <span className="text-caption text-ink/40">({tProduct("comingSoon")})</span>
-              </div>
+              <label
+                className={`flex cursor-pointer items-center justify-between rounded-lg border-2 px-4 py-4 transition-colors ${
+                  effectiveDeliveryMethod === "home" ? "border-primary bg-primary/5" : "border-primary/10 hover:border-primary/25"
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    name="delivery-method"
+                    checked={effectiveDeliveryMethod === "home"}
+                    onChange={() => setDeliveryMethod("home")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  <span className="text-body font-medium text-ink">{t("homeDelivery")}</span>
+                </span>
+                <span className="text-small font-medium text-primary">{formatPrice(homeFee ?? 0, locale)}</span>
+              </label>
+              {pickupFee !== null ? (
+                <label
+                  className={`flex cursor-pointer items-center justify-between rounded-lg border-2 px-4 py-4 transition-colors ${
+                    effectiveDeliveryMethod === "pickup" ? "border-primary bg-primary/5" : "border-primary/10 hover:border-primary/25"
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="delivery-method"
+                      checked={effectiveDeliveryMethod === "pickup"}
+                      onChange={() => setDeliveryMethod("pickup")}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    <span className="text-body font-medium text-ink">{t("pickupDelivery")}</span>
+                  </span>
+                  <span className="text-small font-medium text-primary">{formatPrice(pickupFee, locale)}</span>
+                </label>
+              ) : (
+                <div className="flex items-center justify-between rounded-lg border border-primary/10 px-4 py-4 opacity-50">
+                  <span className="text-body text-ink/60">{t("pickupDelivery")}</span>
+                </div>
+              )}
             </div>
           </section>
 

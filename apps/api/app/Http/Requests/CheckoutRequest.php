@@ -49,12 +49,14 @@ class CheckoutRequest extends FormRequest
             'address.landmark' => ['nullable', 'string', 'max:255'],
             'address.postal_code' => ['nullable', 'string', 'max:20'],
 
-            // Only real, functional options are accepted (PRD §7.7 lists more;
-            // pickup delivery is deferred). payment_method is validated
-            // against whichever gateways are actually enabled+configured
-            // (PaymentGatewayResolver) — cib/edahabia only become selectable
-            // once their CIB_ENABLED/EDAHABIA_ENABLED env vars are set.
-            'delivery_method' => ['required', 'in:home'],
+            // payment_method is validated against whichever gateways are
+            // actually enabled+configured (PaymentGatewayResolver) —
+            // cib/edahabia only become selectable once their
+            // CIB_ENABLED/EDAHABIA_ENABLED env vars are set. delivery_method
+            // is checked against configured wilaya rates, not hardcoded here
+            // (OrderService throws delivery_fee_not_configured if the chosen
+            // wilaya+method has no fee set).
+            'delivery_method' => ['required', 'in:home,pickup'],
             'payment_method' => ['required', 'in:'.implode(',', $this->availablePaymentMethods())],
 
             'notes' => ['nullable', 'string', 'max:1000'],

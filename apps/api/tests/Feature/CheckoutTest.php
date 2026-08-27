@@ -143,6 +143,57 @@ class CheckoutTest extends TestCase
             ->assertJsonPath('data.order.grand_total', 580000);
     }
 
+    /**
+     * Pickup point uses its own delivery_fees row (delivery_method =
+     * 'pickup') at the same wilaya — home's fee must play no part in this
+     * total even though both exist for the wilaya.
+     */
+    public function test_pickup_delivery_uses_the_pickup_fee_not_the_home_fee(): void
+    {
+        $variant = $this->makeVariant(stock: 10, price: 500000);
+        $commune = $this->makeCommune(deliveryFee: 80000);
+        DeliveryFee::create(['wilaya_code' => $commune->wilaya_code, 'delivery_method' => 'pickup', 'fee' => 60000]);
+        $headers = $this->guestHeader();
+
+        $this->withHeaders($headers)->postJson('/api/v1/cart/items', ['variant_id' => $variant->id, 'quantity' => 1])
+            ->assertStatus(201);
+
+        $response = $this->withHeaders($headers)->postJson('/api/v1/checkout', [
+            'customer_name' => 'Amina Test',
+            'customer_phone' => '0555222333',
+            'address' => $this->inlineAddress($commune),
+            'delivery_method' => 'pickup',
+            'payment_method' => 'cod',
+            'locale' => 'en',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.order.delivery_method', 'pickup')
+            ->assertJsonPath('data.order.delivery_fee', 60000)
+            ->assertJsonPath('data.order.grand_total', 560000);
+    }
+
+    public function test_pickup_delivery_is_rejected_when_not_configured_for_the_wilaya(): void
+    {
+        $variant = $this->makeVariant(stock: 10, price: 500000);
+        $commune = $this->makeCommune(deliveryFee: 80000);
+        $headers = $this->guestHeader();
+
+        $this->withHeaders($headers)->postJson('/api/v1/cart/items', ['variant_id' => $variant->id, 'quantity' => 1])
+            ->assertStatus(201);
+
+        $response = $this->withHeaders($headers)->postJson('/api/v1/checkout', [
+            'customer_name' => 'Amina Test',
+            'customer_phone' => '0555222333',
+            'address' => $this->inlineAddress($commune),
+            'delivery_method' => 'pickup',
+            'payment_method' => 'cod',
+            'locale' => 'en',
+        ]);
+
+        $response->assertStatus(422)->assertJsonPath('error.code', 'delivery_fee_not_configured');
+    }
+
     public function test_checkout_commits_stock_and_converts_the_cart(): void
     {
         $variant = $this->makeVariant(stock: 10);

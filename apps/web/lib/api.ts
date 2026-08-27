@@ -1058,7 +1058,7 @@ export function getCommunes(wilayaCode: string): Promise<Commune[]> {
 export type DeliveryFeeLookup = {
   wilaya_code: string;
   home: { fee: number; eta_min_days: number | null; eta_max_days: number | null } | null;
-  pickup: null;
+  pickup: { fee: number; eta_min_days: number | null; eta_max_days: number | null } | null;
 };
 
 export function getDeliveryFee(wilayaCode: string): Promise<DeliveryFeeLookup> {
@@ -1142,7 +1142,7 @@ type CheckoutBase = {
   customer_name: string;
   customer_phone: string;
   customer_email?: string;
-  delivery_method: "home";
+  delivery_method: "home" | "pickup";
   payment_method: "cod" | "whatsapp";
   notes?: string;
   locale: "ar" | "fr" | "en";
@@ -1252,6 +1252,7 @@ export type AdminDeliveryFee = {
   wilaya_code: string;
   wilaya_name: LocalizedText;
   fee: number;
+  pickup_fee: number;
   eta_min_days: number | null;
   eta_max_days: number | null;
 };
@@ -1262,7 +1263,7 @@ export function getAdminDeliveryFees(): Promise<AdminDeliveryFee[]> {
 
 export function updateAdminDeliveryFee(
   wilayaCode: string,
-  payload: { fee: number; eta_min_days?: number | null; eta_max_days?: number | null },
+  payload: { fee: number; pickup_fee: number; eta_min_days?: number | null; eta_max_days?: number | null },
 ): Promise<AdminDeliveryFee> {
   return adminFetch(`/admin/delivery-fees/${encodeURIComponent(wilayaCode)}`, {
     method: "PATCH",

@@ -15,6 +15,7 @@ export function DeliveryFeeRow({ initial }: { initial: AdminDeliveryFee }) {
   // this field works in whole DZD like every other admin price input
   // (see PriceInput), converting at load/submit time.
   const [fee, setFee] = useState(String(initial.fee / 100));
+  const [pickupFee, setPickupFee] = useState(String(initial.pickup_fee / 100));
   const [etaMin, setEtaMin] = useState(initial.eta_min_days != null ? String(initial.eta_min_days) : "");
   const [etaMax, setEtaMax] = useState(initial.eta_max_days != null ? String(initial.eta_max_days) : "");
   const [saving, setSaving] = useState(false);
@@ -29,6 +30,7 @@ export function DeliveryFeeRow({ initial }: { initial: AdminDeliveryFee }) {
     try {
       await updateAdminDeliveryFee(initial.wilaya_code, {
         fee: Math.round(Number(fee) * 100),
+        pickup_fee: Math.round(Number(pickupFee) * 100),
         eta_min_days: etaMin ? Number(etaMin) : null,
         eta_max_days: etaMax ? Number(etaMax) : null,
       });
@@ -52,7 +54,15 @@ export function DeliveryFeeRow({ initial }: { initial: AdminDeliveryFee }) {
             min={0}
             value={fee}
             onChange={setFee}
-            className="w-28 rounded-lg border border-primary/15 bg-white px-2 py-1 text-small text-ink focus:outline-none focus:ring-2 focus:ring-primary/30"
+            placeholder={t("homeDeliveryPrice")}
+            className="w-32 rounded-lg border border-primary/15 bg-white px-2 py-1 text-small text-ink focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          <PriceInput
+            min={0}
+            value={pickupFee}
+            onChange={setPickupFee}
+            placeholder={t("pickupDeliveryPrice")}
+            className="w-32 rounded-lg border border-primary/15 bg-white px-2 py-1 text-small text-ink focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <input
             type="number"

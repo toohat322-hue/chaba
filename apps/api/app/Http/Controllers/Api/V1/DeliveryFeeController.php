@@ -9,22 +9,23 @@ use Illuminate\Http\JsonResponse;
 
 class DeliveryFeeController extends Controller
 {
-    /**
-     * Only `home` is ever populated — pickup/stop-desk isn't offered yet
-     * (no courier partner location data exists).
-     */
     public function show(string $wilayaCode): JsonResponse
     {
-        $home = DeliveryFee::where('wilaya_code', $wilayaCode)->where('delivery_method', 'home')->first();
+        $fees = DeliveryFee::where('wilaya_code', $wilayaCode)
+            ->whereIn('delivery_method', ['home', 'pickup'])
+            ->get()
+            ->keyBy('delivery_method');
+
+        $present = fn (?DeliveryFee $fee) => $fee ? [
+            'fee' => $fee->fee,
+            'eta_min_days' => $fee->eta_min_days,
+            'eta_max_days' => $fee->eta_max_days,
+        ] : null;
 
         return ApiResponse::success([
             'wilaya_code' => $wilayaCode,
-            'home' => $home ? [
-                'fee' => $home->fee,
-                'eta_min_days' => $home->eta_min_days,
-                'eta_max_days' => $home->eta_max_days,
-            ] : null,
-            'pickup' => null,
+            'home' => $present($fees->get('home')),
+            'pickup' => $present($fees->get('pickup')),
         ]);
     }
 }
