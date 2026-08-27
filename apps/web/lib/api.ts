@@ -273,16 +273,50 @@ export type CartData = {
 // visible in My Orders) — falls back to the guest session otherwise. Cart
 // items added *before* login are not merged into the account (a distinct,
 // deferred feature); this only affects which identity new operations use.
-function cartFetch<T>(path: string, init?: RequestInit): Promise<T> {
+//
+// A stored access token can be stale (expired, or the customer was logged
+// out server-side) without that being visible here — it's just a string in
+// localStorage. /cart and /wishlist routes have no auth:sanctum middleware
+// (guests use them too), so an invalid Bearer token doesn't 401; the guard
+// just silently resolves no user, and since no X-Guest-Session was sent
+// either (the caller thought it was authenticated), the backend rejects the
+// request with guest_session_required. Retrying once with a refreshed
+// token, then falling back to a guest session if the customer is genuinely
+// logged out, is what makes "add to cart" keep working through an expired
+// session instead of surfacing this as a dead end.
+async function customerOrGuestFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const { access } = getCustomerTokens();
-  const identityHeader: Record<string, string> = access
-    ? { Authorization: `Bearer ${access}` }
-    : { "X-Guest-Session": getSessionToken() };
+
+  if (!access) {
+    return apiFetch<T>(path, {
+      ...init,
+      headers: { "X-Guest-Session": getSessionToken(), ...init?.headers },
+    });
+  }
+
+  try {
+    return await apiFetch<T>(path, {
+      ...init,
+      headers: { Authorization: `Bearer ${access}`, ...init?.headers },
+    });
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.code !== "guest_session_required") {
+      throw error;
+    }
+  }
+
+  const refreshedAccess = await refreshCustomerSessionOnce();
 
   return apiFetch<T>(path, {
     ...init,
-    headers: { ...identityHeader, ...init?.headers },
+    headers: refreshedAccess
+      ? { Authorization: `Bearer ${refreshedAccess}`, ...init?.headers }
+      : { "X-Guest-Session": getSessionToken(), ...init?.headers },
   });
+}
+
+function cartFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  return customerOrGuestFetch<T>(path, init);
 }
 
 export function getCart(): Promise<CartData> {
@@ -336,18 +370,11 @@ export type WishlistItem = {
   created_at: string;
 };
 
-// Same guest-vs-customer identity resolution as cartFetch, and the same
-// deferred gap: items added before login aren't merged into the account.
+// Same guest-vs-customer identity resolution as cartFetch (including the
+// stale-token fallback), and the same deferred gap: items added before
+// login aren't merged into the account.
 function wishlistFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const { access } = getCustomerTokens();
-  const identityHeader: Record<string, string> = access
-    ? { Authorization: `Bearer ${access}` }
-    : { "X-Guest-Session": getSessionToken() };
-
-  return apiFetch<T>(path, {
-    ...init,
-    headers: { ...identityHeader, ...init?.headers },
-  });
+  return customerOrGuestFetch<T>(path, init);
 }
 
 export function getWishlist(): Promise<WishlistItem[]> {
