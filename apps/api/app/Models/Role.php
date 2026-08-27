@@ -13,7 +13,12 @@ class Role extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['name', 'description'];
+    protected $fillable = ['name', 'description', 'permissions_customized_at'];
+
+    protected function casts(): array
+    {
+        return ['permissions_customized_at' => 'datetime'];
+    }
 
     public function permissions(): BelongsToMany
     {

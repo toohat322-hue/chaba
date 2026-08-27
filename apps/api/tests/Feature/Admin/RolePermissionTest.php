@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesStaffUsers;
 use Tests\TestCase;
@@ -71,6 +72,38 @@ class RolePermissionTest extends TestCase
             ->patchJson("/api/v1/admin/roles/{$role->id}", ['permission_keys' => []])
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'role_not_editable');
+    }
+
+    /**
+     * Regression: RolePermissionSeeder runs on every deploy — it must never
+     * reset a role's permissions back to the hardcoded defaults once an
+     * admin has customized them (previously deleted and re-inserted every
+     * role's grants unconditionally on every run).
+     */
+    public function test_seeding_again_does_not_undo_an_admin_customized_roles_permissions(): void
+    {
+        [, $headers] = $this->actingAsRole('Super Admin');
+        $role = Role::where('name', 'Customer Support')->firstOrFail();
+
+        $this->withHeaders($headers)->patchJson("/api/v1/admin/roles/{$role->id}", [
+            'permission_keys' => ['orders.view'],
+        ])->assertStatus(200);
+
+        (new RolePermissionSeeder)->run();
+
+        $keys = $role->fresh('permissions')->permissions->pluck('key')->all();
+        $this->assertSame(['orders.view'], $keys);
+    }
+
+    public function test_seeding_again_still_applies_to_a_role_that_was_never_customized(): void
+    {
+        $role = Role::where('name', 'Order Manager')->firstOrFail();
+        $role->permissions()->detach();
+
+        (new RolePermissionSeeder)->run();
+
+        $keys = $role->fresh('permissions')->permissions->pluck('key')->all();
+        $this->assertContains('orders.view', $keys);
     }
 
     public function test_a_role_without_roles_view_is_forbidden(): void

@@ -6,6 +6,13 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 // PRD §19.1 table translated into permission-key grants per role.
+//
+// Runs on every deploy (ProductionSeeder, via preDeployCommand) — an admin
+// can customize a role's permission set (RoleController::update), so this
+// must never reset one back to these hardcoded defaults after that happens.
+// roles.permissions_customized_at (set by that same update()) marks a role
+// as admin-owned; only roles still at null (never touched, or freshly
+// created by RoleSeeder) get kept in sync with this table as it evolves.
 class RolePermissionSeeder extends Seeder
 {
     private const GRANTS = [
@@ -48,12 +55,12 @@ class RolePermissionSeeder extends Seeder
 
     public function run(): void
     {
-        $roleIds = DB::table('roles')->pluck('id', 'name');
+        $roles = DB::table('roles')->whereNull('permissions_customized_at')->pluck('id', 'name');
         $permissionIds = DB::table('permissions')->pluck('id', 'key');
         $allPermissionKeys = $permissionIds->keys();
 
         foreach (self::GRANTS as $roleName => $grant) {
-            $roleId = $roleIds[$roleName] ?? null;
+            $roleId = $roles[$roleName] ?? null;
             if (! $roleId) {
                 continue;
             }

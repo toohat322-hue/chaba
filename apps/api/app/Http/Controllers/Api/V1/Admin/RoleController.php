@@ -58,6 +58,11 @@ class RoleController extends Controller
 
         $permissionIds = Permission::whereIn('key', $request->input('permission_keys', []))->pluck('id');
         $model->permissions()->sync($permissionIds);
+        // Marks this role as admin-owned from now on — RolePermissionSeeder
+        // (re-run on every deploy) skips any role with this set, so this
+        // edit survives the next deploy instead of being silently reset
+        // back to the hardcoded PRD default grant set.
+        $model->update(['permissions_customized_at' => now()]);
 
         $refreshed = $model->fresh('permissions')->loadCount('users');
         $afterKeys = $refreshed->permissions->pluck('key')->sort()->values()->all();
