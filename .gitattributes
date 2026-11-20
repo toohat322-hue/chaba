@@ -1,0 +1,6 @@
+# Files that run or are read on the Linux server must keep LF line endings,
+# even when committed from Windows (core.autocrlf would otherwise be free
+# to give them CRLF in a Windows checkout, which breaks bash and Caddy).
+*.sh            text eol=lf
+deploy/**       text eol=lf
+apps/api/docker/** text eol=lf

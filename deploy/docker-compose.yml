@@ -1,0 +1,144 @@
+# Production stack for a single server (Hetzner). Everything CHABA needs runs
+# here: Caddy (HTTPS), the storefront, the API, the queue worker, the
+# scheduler, Postgres and Redis. Product images stay on Cloudflare R2.
+#
+# Values come from two files next to this one, both created by install.sh
+# and never committed:
+#   .env      hosts, database password, storefront build settings
+#   api.env   Laravel settings (APP_KEY, R2, mail, SMS, Google, ...)
+#
+# Day to day, deploy.sh is the only thing that should run this file.
+
+name: chaba
+
+x-api: &api
+  image: chaba-api
+  restart: unless-stopped
+  env_file: api.env
+  environment:
+    APP_URL: https://${API_HOST}
+    FRONTEND_URL: https://${WEB_HOST}
+    GOOGLE_REDIRECT_URI: https://${API_HOST}/api/v1/auth/google/callback
+    DB_CONNECTION: pgsql
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_DATABASE: chaba
+    DB_USERNAME: chaba
+    DB_PASSWORD: ${POSTGRES_PASSWORD}
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      WEB_HOST: ${WEB_HOST}
+      API_HOST: ${API_HOST}
+      ACME_EMAIL: ${ACME_EMAIL}
+      CADDY_GLOBAL_EXTRA: ${CADDY_GLOBAL_EXTRA:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      default:
+        # The storefront's server-side rendering calls the API by its public
+        # URL. This alias makes that name resolve straight to Caddy inside
+        # the Docker network, instead of leaving the server and coming back.
+        aliases:
+          - ${API_HOST}
+    depends_on:
+      - api
+      - web
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: chaba
+      POSTGRES_USER: chaba
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chaba -d chaba"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    <<: *api
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/api/v1/health > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  queue:
+    <<: *api
+    pull_policy: never
+    # The base image ships a health check for its web server; this container
+    # runs no web server, so that check would always fail.
+    healthcheck:
+      disable: true
+    command: ["php", "artisan", "queue:work", "redis", "--tries=3", "--timeout=90", "--sleep=3", "--max-time=3600"]
+
+  scheduler:
+    <<: *api
+    pull_policy: never
+    healthcheck:
+      disable: true
+    command: ["php", "artisan", "schedule:work"]
+
+  web:
+    image: chaba-web
+    restart: unless-stopped
+    build:
+      context: ../apps/web
+      # NEXT_PUBLIC_* values are baked into the JS bundle at build time.
+      args:
+        NEXT_PUBLIC_API_URL: https://${API_HOST}/api/v1
+        NEXT_PUBLIC_SITE_URL: https://${WEB_HOST}
+        NEXT_PUBLIC_ASSET_URL: ${NEXT_PUBLIC_ASSET_URL:-}
+        NEXT_PUBLIC_WHATSAPP_NUMBER: ${NEXT_PUBLIC_WHATSAPP_NUMBER:-}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: production
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+        NEXT_PUBLIC_GSC_VERIFICATION: ${NEXT_PUBLIC_GSC_VERIFICATION:-}
+    environment:
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: production
+    depends_on:
+      - api
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  redis_data:

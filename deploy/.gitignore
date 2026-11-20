@@ -1,0 +1,4 @@
+# Real settings files with secrets (created on the server by install.sh).
+.env
+api.env
+docker-compose.override.yml

@@ -1,0 +1,42 @@
+name: Deploy
+
+# Every push to master updates the live server. Can also be started by hand
+# from the Actions tab ("Run workflow").
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# Never run two deploys at once; a newer push waits for the current one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Hetzner
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
+    steps:
+      # Until the server's secrets are added (docs/DEPLOYMENT-HETZNER.md,
+      # step 6), skip quietly instead of failing every push.
+      - name: Check the server is configured
+        if: env.HETZNER_HOST == ''
+        run: echo "::notice::HETZNER_HOST secret not set yet, skipping deploy."
+
+      - name: Pull the new code and deploy
+        if: env.HETZNER_HOST != ''
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: deploy
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          command_timeout: 25m
+          script: |
+            set -e
+            cd /opt/chaba
+            git fetch --depth=1 origin master
+            git reset --hard origin/master
+            ./deploy/deploy.sh

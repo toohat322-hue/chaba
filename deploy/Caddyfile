@@ -1,0 +1,20 @@
+# Caddy gets and renews the HTTPS certificates automatically.
+# WEB_HOST / API_HOST come from deploy/.env.
+{
+	email {$ACME_EMAIL}
+	{$CADDY_GLOBAL_EXTRA}
+}
+
+{$WEB_HOST} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+{$API_HOST} {
+	encode zstd gzip
+	# Matches upload_max_filesize/post_max_size in apps/api/docker/php.ini.
+	request_body {
+		max_size 12MB
+	}
+	reverse_proxy api:8000
+}
