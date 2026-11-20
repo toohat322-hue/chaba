@@ -22,7 +22,7 @@
 2. اضغط **Add Server** واختر:
    - **Location:** Falkenstein أو Nuremberg (ألمانيا، الأقرب للجزائر).
    - **Image:** Ubuntu 24.04.
-   - **Type:** Shared vCPU → **CX22** (2 vCPU، 4GB RAM) أو أعلى.
+   - **Type:** Cost-Optimized → **CX23** (x86، ‏2 vCPU، 4GB RAM)، وإن لم يكن متوفرًا فـ **CAX11** (Arm64، نفس المواصفات). الموقع يعمل على النوعين، والسيرفر الحالي CAX11.
    - **SSH keys:** أضف مفتاح جهازك. إن لم يكن عندك مفتاح، شغّل `ssh-keygen -t ed25519` في PowerShell، ثم الصق محتوى الملف `C:\Users\<اسمك>\.ssh\id_ed25519.pub`.
 3. اضغط **Create & Buy now** وانسخ عنوان الـ IP.
 
