@@ -87,14 +87,15 @@ const nextConfig: NextConfig = {
         ? [{ protocol: assetUrl.protocol === "https:" ? "https" : "http", hostname: assetUrl.hostname, port: assetUrl.port } as const]
         : []),
     ],
-    // Dev-only: local MinIO is reached at a loopback address
-    // (NEXT_PUBLIC_ASSET_URL=http://127.0.0.1:9000), which Next's image
-    // optimizer refuses by default as an SSRF precaution. That protection
-    // exists for arbitrary/user-controlled hosts; here the origin is locked
-    // down to the one exact host above via remotePatterns, not user input,
-    // so it's safe to relax — and only ever in dev, since production uses a
-    // real public S3/CDN domain, never a private IP.
-    ...(process.env.NODE_ENV !== "production" && { dangerouslyAllowLocalIP: true }),
+    // Next's image optimizer refuses hosts that resolve to a private IP (an
+    // SSRF precaution), and both our environments hit that: local MinIO is
+    // on 127.0.0.1 in dev, and in production (deploy/docker-compose.yml)
+    // the API hostname is a Docker network alias for Caddy, so from inside
+    // the web container it resolves to a 172.x address — without this,
+    // every product image 400s with "url parameter is not allowed". Safe to
+    // relax: the protection is for arbitrary hosts, and remotePatterns above
+    // already locks fetching to our own API and asset hosts only.
+    dangerouslyAllowLocalIP: true,
   },
   async headers() {
     return [
